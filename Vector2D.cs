@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -29,17 +30,14 @@ namespace ConsoleGame
             Y = v.Y;
         }
 
-        // Magnitude of the vector
         public float Magnitude() => (float)Math.Sqrt(X * X + Y * Y);
 
-        // Normalize the vector
         public fVector2D Normalize()
         {
             float magnitude = Magnitude();
             return magnitude == 0 ? new fVector2D(0, 0) : new fVector2D(X / magnitude, Y / magnitude);
         }
 
-        // Dot product
         public float Dot(fVector2D other) => X * other.X + Y * other.Y;
 
         // Addition
@@ -84,12 +82,18 @@ namespace ConsoleGame
         public override string ToString() => $"({X}, {Y})";
 
         // Implicit conversion to integer vector
-        public static implicit operator fVector2D((int x, int y) intVector) => new fVector2D(intVector.x, intVector.y);
+        public static implicit operator fVector2D((int x, int y) intVector) => new iVector2D(intVector.x, intVector.y);
 
         // Implicit conversion to tuple
         public static implicit operator (float x, float y)(fVector2D vector) => (vector.X, vector.Y);
-    }
 
+        // Custom
+        public bool IsVertex(float vertexThreshold)
+        {
+            var temp = this % 1;
+            return (temp.X < vertexThreshold || temp.X > 1 - vertexThreshold) && (temp.Y < vertexThreshold || temp.Y > 1 - vertexThreshold);
+        }
+    }
     public class iVector2D
     {
         public int X { get; set; }
@@ -101,7 +105,6 @@ namespace ConsoleGame
             X = x;
             Y = y;
         }
-
         public iVector2D(fVector2D v)
         {
             X = (int)v.X;

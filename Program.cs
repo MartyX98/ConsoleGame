@@ -1,5 +1,7 @@
 ﻿using ConsoleGame;
+using System;
 using System.Globalization;
+using System.Linq.Expressions;
 using System.Numerics;
 using System.Text;
 
@@ -13,13 +15,12 @@ namespace ConsoleGame
 
             // building floor texture
             Plane pFloor = new(pScreen.Width, 15);
-            int randShadeOffset = 3;
-            for (int colIdx = 0; colIdx < pFloor.Width; colIdx++)
+            Random random = new();
+            for (int x = 0; x < pFloor.Width; x++)
             {
-                for (int rowIdx = 0; rowIdx < pFloor.Height; rowIdx++)
+                for (int y = 0; y < pFloor.Height; y++)
                 {
-                    int p = Math.Max(Math.Min((rowIdx * Icons.ShadingFloor.Length / pFloor.Height) + new Random().Next(-randShadeOffset, randShadeOffset + 1), Icons.ShadingFloor.Length - 1), 0);
-                    pFloor[rowIdx, colIdx] = Icons.ShadingFloor[p];
+                    pFloor[y, x] = Icons.GetShade((float)y / (pFloor.Height - 1), Icons.ShadingFloor, random.Next(-3, 4), flipRange: true);
                 }
             }
 
@@ -31,7 +32,6 @@ namespace ConsoleGame
             UserInputHandler userInputHandler = new();
             CultureInfo clt = CultureInfo.InvariantCulture;
             userInputHandler.StartHandlingInputAsync();
-            int tempCount = 0;
 
             bool mainLoop = true;
             while (mainLoop)
@@ -45,7 +45,6 @@ namespace ConsoleGame
                     case ConsoleKey.NumPad8:
                         ePlayer.Walk(fpsManager.deltaTime);
                         //gFloor.Slide(offsetY: 1);
-                        tempCount++;
                         break;
 
                     // walk backwards
@@ -109,7 +108,6 @@ namespace ConsoleGame
                         vStep.X = 1;
                         vRayLength1D.X = (vMapCheck.X + 1 - vRayStart.X) * vRayUnitStepSize.X;
                     }
-                    
 
                     if (vRayDir.Y < 0)
                     {
@@ -146,7 +144,6 @@ namespace ConsoleGame
                         }
                     }
 
-                    char shade = Icons.Air;
                     fVector2D vIntersection = vRayStart + vRayDir * fDistance;
                     // fisheye distortion fix
                     fDistance *= (float)Math.Cos((relativeX * ePlayer.FOV) % (Math.PI * 2));
@@ -154,21 +151,11 @@ namespace ConsoleGame
                     if (bTileFound)
                     {
                         // Visualizing POV on minimap
-                        var vIntF = vIntersection % 1;
                         pMiniMap[vMapCheck] = Icons.MiniMap_Wall;
 
-                        // Shading
-                        int iShade = (int)(fDistance * (Icons.ShadingWall.Length - 1) / ePlayer.fovDepth);
-                        // downgrade shade if ray hit corner
-                        float limit = 0.075f;
-                        if ((vIntF.X < limit || vIntF.X > 1 - limit) && (vIntF.Y < limit || vIntF.Y > 1 - limit))
-                        {
-                            iShade = Math.Min(iShade + 1, Icons.ShadingWall.Length - 1);
-                        }
-                        shade = Icons.ShadingWall[iShade];
-
+                        // Drawing wall column
                         int minWallHeight = 0;
-                        int maxWallHeight = 30;
+                        int maxWallHeight = 28;
 
                         float fDistanceUnit = (fDistance / ePlayer.fovDepth);
 
@@ -180,7 +167,7 @@ namespace ConsoleGame
 
                         for (int i = wallVerticalOffset; i < pScreen.Height - wallVerticalOffset; i++)
                         {
-                            pWalls[i, x] = shade;
+                            pWalls[i, x] = Icons.GetShade(fDistance / ePlayer.fovDepth, Icons.ShadingWall, vIntersection.IsVertex(0.075f) ? +1 : 0);
                         }
                     }
                 }
@@ -190,7 +177,7 @@ namespace ConsoleGame
                 pMiniMap[(int)ePlayer.Y, (int)ePlayer.X] = ePlayer.Icon;
                 pScreen.Impose(pFloor, y: pScreen.Height - pFloor.Height);
                 pScreen.Impose(pWalls, allowTransparency: true);
-                pScreen.Impose($"FPS: {fpsManager.CurrentFPS} | Player XYA ({ePlayer.X.ToString("0.0", clt)}, {ePlayer.Y.ToString("0.0", clt)}, {ePlayer.Angle.ToString("0.0", clt)}) | Map size: ({pMiniMap.Width}, {pMiniMap.Height}) | {userInputHandler.pressedKey} {tempCount}");
+                pScreen.Impose($"FPS: {fpsManager.CurrentFPS} | Player XYA ({ePlayer.X.ToString("0.0", clt)}, {ePlayer.Y.ToString("0.0", clt)}, {ePlayer.Angle.ToString("0.0", clt)}) | Map size: ({pMiniMap.Width}, {pMiniMap.Height}) | {userInputHandler.pressedKey}");
                 pScreen.Impose(pMiniMap, y:1);
                 consoleManager.Write(pScreen.Arr);
                 pScreen.Fill(' ');
@@ -201,20 +188,3 @@ namespace ConsoleGame
         }
     }
 }
-
-// --- Ordered TODO tasks ---
-// DONE: Custom vector class
-// DONE: Custom 2D Plane class with char array at core
-// DONE: Implement some primitive 3D wall rendering (finally)
-// DONE: ScreenHandler.AddToScreen should have extra optional param "allowTransparency" to skip Icons.Air to be able to print transparently.
-// DONE: Fix fisheye distortion
-// DONE: Grid2D renamed to Plane, reimplemented transformations, added richer options
-// DONE: Replace MapHandler with Plane
-// DONE: Got rid of ScreenHandler
-// Shit happens too many times upon single key push. Either expand UserInputHandler to listen for key up/down events, or code in manual control over repetitions
-// once ↑ is done, take control of the speed of shifting of the floor texture when turning
-
-// --- Other TODO tasks ---
-// preallocate vars before loops to avoid performance overhead with calling constructors (does that even make a difference?)
-// rename Icons class to Textures?
-// Texture grandient obj / class for texture ranges?
