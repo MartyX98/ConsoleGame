@@ -17,22 +17,14 @@
             Arr = GetCharArray(height * width, fill);
         }
 
-        public Plane(int width, int height, char[] arr)
+        public Plane(int width, int height, char[] arr) : this(width, height)
         {
-            if (width <= 0 || height <= 0) throw new Exception("Invalid grid parameters provided.");
-            if (width * height != arr.Length) throw new Exception("Width and Height do not match provided array's length");
-            Width = width;
-            Height = height;
-            Arr = new char[width * height];
             Array.Copy(arr, Arr, width * height);
         }
 
-        public Plane(Plane g)
+        public Plane(Plane p) : this(p.Width, p.Height)
         {
-            Width = g.Width;
-            Height = g.Height;
-            Arr = new char[g.Width * g.Height];
-            Array.Copy(g.Arr, Arr, g.Width * g.Height);
+            Array.Copy(p.Arr, Arr, p.Width * p.Height);
         }
 
         public Plane(string path)
