@@ -13,7 +13,8 @@
 - The background texture (floor and sky) shifts sideways too much when the player entity is rotating. Perhaps the shift should be dependent on changes of player's viewing angle instead of key presses?
 - Inconsistent use of the 'Icons.Air' and maybe more. That's just my sloppy coding, I will fix it in the future.
 - No collision checking implemented yet.
-- Walking out of bounds may cause a crash.
+- Walking or looking out of bounds may cause a crash.
+- Textures on on Walls are reversed on 2 out of the 4 directions.
 
 ___
 ## Basic Ascii Art texture support (2025-01-20)
