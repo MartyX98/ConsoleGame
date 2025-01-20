@@ -38,6 +38,7 @@ namespace ConsoleGame
 
             CharGrid gMap = CharGrid.Load(Path.Combine("maps", "test.txt"));
             CharGrid gMinimap = new(gMap);
+            char[] collidables = [Icons.Wall];
 
             Entity ePlayer = new(
                 icon: Icons.Player,
@@ -99,16 +100,6 @@ namespace ConsoleGame
                         gBackground.Slide(offsetX: -1);
                         break;
 
-                    // add to var
-                    case ConsoleKey.NumPad1:
-                        worldWallHeight += 0.001f;
-                        break;
-
-                    // sub from var
-                    case ConsoleKey.NumPad3:
-                        worldWallHeight -= 0.001f;
-                        break;
-
                     // exit
                     case ConsoleKey.Escape:
                         mainLoop = false;
@@ -118,81 +109,28 @@ namespace ConsoleGame
                 // DDA Raycast loop, 2D to 3D screen projection
                 gMinimap.Impose(gMap);
                 CharGrid pWalls = new(gScreen.Width, gScreen.Height);
-                fVector2D vRayStart = new(ePlayer.X, ePlayer.Y);
                 for (int x = 0; x < gScreen.Width; x++)
                 {
                     float relativeX = (x - gScreen.Width / 2f) / gScreen.Width;
                     float rayAngle = ePlayer.Angle + relativeX * ePlayer.FOV;
-                    fVector2D vRayDir = new((float)Math.Cos(rayAngle), (float)Math.Sin(rayAngle));
-                    fVector2D vRayUnitStepSize = new((float)Math.Sqrt(1 + (vRayDir.Y / vRayDir.X) * (vRayDir.Y / vRayDir.X)),
-                                                   (float)Math.Sqrt(1 + (vRayDir.X / vRayDir.Y) * (vRayDir.X / vRayDir.Y)));
-                    iVector2D vMapCheck = new(vRayStart);
-                    fVector2D vRayLength1D = new(0, 0);
-                    iVector2D vStep = new(0, 0);
 
-                    if (vRayDir.X < 0)
-                    {
-                        vStep.X = -1;
-                        vRayLength1D.X = (vRayStart.X - vMapCheck.X) * vRayUnitStepSize.X;
-                    }
-                    else
-                    {
-                        vStep.X = 1;
-                        vRayLength1D.X = (vMapCheck.X + 1 - vRayStart.X) * vRayUnitStepSize.X;
-                    }
+                    var castResult = Raycaster.CastRay(gMap, ePlayer, rayAngle, ePlayer.fovDepth, collidables);
 
-                    if (vRayDir.Y < 0)
-                    {
-                        vStep.Y = -1;
-                        vRayLength1D.Y = (vRayStart.Y - vMapCheck.Y) * vRayUnitStepSize.Y;
-                    }
-                    else
-                    {
-                        vStep.Y = 1;
-                        vRayLength1D.Y = (vMapCheck.Y + 1 - vRayStart.Y) * vRayUnitStepSize.Y;
-                    }
-
-                    bool bTileFound = false;
-                    float fMaxDistance = ePlayer.fovDepth;
-                    float fDistance = 0f;
-                    while (!bTileFound && fDistance < fMaxDistance)
-                    {
-                        if (vRayLength1D.X < vRayLength1D.Y)
-                        {
-                            vMapCheck.X += vStep.X;
-                            fDistance = vRayLength1D.X;
-                            vRayLength1D.X += vRayUnitStepSize.X;
-                        }
-                        else
-                        {
-                            vMapCheck.Y += vStep.Y;
-                            fDistance = vRayLength1D.Y;
-                            vRayLength1D.Y += vRayUnitStepSize.Y;
-                        }
-
-                        if (gMap.Validate(vMapCheck) && gMap[vMapCheck.Y, vMapCheck.X] == Icons.Wall)
-                        {
-                            bTileFound = true;
-                        }
-                    }
-
-                    fVector2D vIntersection = vRayStart + vRayDir * fDistance;
-                    
                     // fisheye distortion fix
-                    fDistance *= (float)Math.Cos((relativeX * ePlayer.FOV) % (Math.PI * 2));
+                    float fDistanceCorrected = castResult.Distance * (float)Math.Cos((relativeX * ePlayer.FOV) % (Math.PI * 2));
 
-                    if (bTileFound)
+                    if (castResult.HitObject == Icons.Wall)
                     {
-                        gMinimap[vMapCheck] = Icons.MiniMap_WallIntersected;
+                        gMinimap[castResult.GridIntersection] = Icons.MiniMap_WallIntersected;
 
                         // Calculate the wall height based on distance
-                        int wallHeight = (int)(gScreen.Height / fDistance);
+                        int wallHeight = (int)(gScreen.Height / fDistanceCorrected);
                         wallHeight = Math.Clamp(wallHeight, 0, gScreen.Height / 2);
 
-                        // Determine horizontal texture offset (unchanged)
-                        int x_texture = Math.Round(vIntersection.X, 4) % 1 == 0 ?
-                            (int)((vIntersection.Y - (float)Math.Floor(vIntersection.Y)) * gWallTexture.Width) :
-                            (int)((vIntersection.X - (float)Math.Floor(vIntersection.X)) * gWallTexture.Width);
+                        // Determine horizontal texture offset
+                        int x_texture = Math.Round(castResult.ExactIntersection.X, 4) % 1 == 0 ?
+                            (int)((castResult.ExactIntersection.Y - (float)Math.Floor(castResult.ExactIntersection.Y)) * gWallTexture.Width) :
+                            (int)((castResult.ExactIntersection.X - (float)Math.Floor(castResult.ExactIntersection.X)) * gWallTexture.Width);
 
                         // Draw the wall slice with perspective correction
                         for (int y = gScreen.Height / 2 - wallHeight; y < gScreen.Height / 2 + wallHeight; y++)
@@ -201,7 +139,7 @@ namespace ConsoleGame
                             float rayDirectionY = (y - gScreen.Height / 2) / (float)gScreen.Height;
 
                             // Apply perspective correction
-                            float perspectiveCorrection = rayDirectionY * fDistance / worldWallHeight;
+                            float perspectiveCorrection = rayDirectionY * fDistanceCorrected / worldWallHeight;
 
                             // Clamp the perspective correction to valid texture coordinates
                             perspectiveCorrection = Math.Clamp(perspectiveCorrection + verticalTextureOffset, 0, 1);
@@ -218,7 +156,7 @@ namespace ConsoleGame
                 gMinimap[(int)ePlayer.Y, (int)ePlayer.X] = ePlayer.Icon;
                 gScreen.Impose(gBackground);
                 gScreen.Impose(pWalls, allowTransparency: true);
-                gScreen.Impose($"FPS: {fpsManager.CurrentFPS} | Player XYA ({ePlayer.X.ToString("0.0", clt)}, {ePlayer.Y.ToString("0.0", clt)}, {ePlayer.Angle.ToString("0.0", clt)}) | Map size: ({gMinimap.Width}, {gMinimap.Height}) | var: {worldWallHeight}");
+                gScreen.Impose($"FPS: {fpsManager.CurrentFPS} | Player XYA ({ePlayer.X.ToString("0.0", clt)}, {ePlayer.Y.ToString("0.0", clt)}, {ePlayer.Angle.ToString("0.0", clt)}) | Map size: ({gMinimap.Width}, {gMinimap.Height})");
                 gScreen.Impose(gMinimap, y: 1);
                 Window.Write(gScreen, doNotChunk: true);
                 gScreen.Fill(' ');
