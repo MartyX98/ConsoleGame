@@ -6,15 +6,9 @@ No idea! I don't even know what kind of game it is going to be. So far I am only
 
 **The main directives** I would however like to stick to along the developement are following..
 - Terminal as the graphical output.
-  - That's what it's build for, and what I want it to remain as. It's not practical (at all), but as Woodkid said somewhere "*constraints could allow for more creative freedom or fruitful outcome, if done right.*" (don't quote him or me on that, i couldn't find the source, I might have just pulled it out of my ass, but I'm pretty sure he conveyed this message in some inteview)
-  - Other outputs (such as sounds, etc..) are not out of the table and might be introduced later
+  - That's what it's build for, and what I want it to remain as. It's not practical (at all), but it's a fun constraint and I want to see how far I could take this with.
+- Other kinds of outputs besides visual are not out of the table and might be introduced later.
+- Third party libraries may be utilized if necessary.
 
-## Features / TODO list
-- [x] Vector class (not final though)
-- [x] Plane class (matrix in essence) for handling textures, maps, display, etc..
-- [x] Basic DDA based raycasting logic and rendering output as "3D" environment.
-- [x] Entity class for handling both player and any other future entities.
-- [ ] Input handler very limited in it's current implementation. From the main game loop, a single key click is registered too many times.
-- [ ] Floor texture shifts sideways too much when the player entity is rotating -> Related to the problem above.
-- [ ] Icons class' name no longer represents all it does. Perhaps rename it to "Textures"?
-- [ ] Some textures/icons are grandients of chars instead of a single characters. Maybe I should add some simple class to handle the logic of mapping floats to the char index in the grandient instead of having to do it always in the main code.
+[See VERSIONS.md file for more details about current developement state.](VERSIONS.md)
+

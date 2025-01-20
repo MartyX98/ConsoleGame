@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConsoleGame
+﻿namespace ConsoleGame
 {
     public class fVector2D
     {
@@ -92,6 +85,12 @@ namespace ConsoleGame
         {
             var temp = this % 1;
             return (temp.X < vertexThreshold || temp.X > 1 - vertexThreshold) && (temp.Y < vertexThreshold || temp.Y > 1 - vertexThreshold);
+        }
+
+        public void Round(int decimalPlaces)
+        {
+            X = (float)Math.Round(X, decimalPlaces);
+            Y = (float)Math.Round(Y, decimalPlaces);
         }
     }
     public class iVector2D

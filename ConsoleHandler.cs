@@ -56,6 +56,52 @@ namespace ConsoleGame
             }
         }
 
+        public void Write(CharGrid g, int x = 0, int y = 0, bool doNotChunk = false)
+        {
+
+            if (doNotChunk)
+            {
+                Write(g.Arr, x, y);
+                return;
+            }
+
+            int n = 0;
+            for (int i = 0; i < g.Arr.Length; i += g.Width)
+            {
+                Write(g.Arr[i..(i + g.Width)], x, y + n++);
+            }
+
+            //int n = 0;
+            //foreach (char[] arr in g.Arr.Chunk(g.Width))
+            //{
+            //    Write(arr, x, y + n++);
+            //}
+
+            // ~ 500 fps
+            //string[] s = ;
+            //for (int i = 0; i < g.Height; i++)
+            //{
+            //    Write(s[i], x, y + i);
+            //}
+
+            // ~ 500 fps
+            //for (int i = 0; i < g.Height; i++)
+            //{
+            //    Write([.. g.Arr.Take(new Range(g.Width * i, g.Width * (i + 1)))], x, y + i);
+            //}
+
+            // < 10 fps
+            //for (int i = 0; i < g.Width; i++)
+            //{
+            //    for (int j = 0; j < g.Height; j++)
+            //    {
+            //        Write(g[j, i], x + i, y + j);
+            //    }
+            //}
+        }
+
+
+
         // Write a single character at specific coordinates
         public void Write(char c, int x = 0, int y = 0)
         {

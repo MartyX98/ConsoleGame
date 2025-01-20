@@ -1,9 +1,4 @@
-﻿using ConsoleGame;
-using System;
-using System.Globalization;
-using System.Linq.Expressions;
-using System.Numerics;
-using System.Text;
+﻿using System.Globalization;
 
 namespace ConsoleGame
 {
@@ -11,26 +6,53 @@ namespace ConsoleGame
     {
         public static void Main()
         {
-            Plane pScreen = new(120, 30);
+            CharGrid gScreen = new(120, 30);
+            CharGrid gBackground = new(gScreen.Width, gScreen.Height);
+            CharGrid gWallTexture = CharGrid.Load(Path.Combine("textures", "wall.txt"));
+            CharGrid gTreeTexture = CharGrid.Load(Path.Combine("textures", "tree.txt"));
+            float worldWallHeight = 1.6f;
+            float verticalTextureOffset = 0.57f;
 
-            // building floor texture
-            Plane pFloor = new(pScreen.Width, 15);
-            Random random = new();
-            for (int x = 0; x < pFloor.Width; x++)
+            Random r = new();
+
+            int iFloorTextureRandOffset = 3;
+            float fSkyStarPopulation = 1f / 40;
+
+            // building sky
+            for (int x = 0; x < gBackground.Width; x++)
             {
-                for (int y = 0; y < pFloor.Height; y++)
+                for (int y = 0; y < gBackground.Height / 2; y++)
                 {
-                    pFloor[y, x] = Icons.GetShade((float)y / (pFloor.Height - 1), Icons.ShadingFloor, random.Next(-3, 4), flipRange: true);
+                    gBackground[y, x] = r.NextSingle() <= fSkyStarPopulation ? Icons.Stars[r.Next(0, Icons.Stars.Length)] : Icons.Air;
                 }
             }
 
-            Plane pMap = new(path: "maps/test.txt");
-            Plane pMiniMap = new(pMap);
-            ConsoleHandler consoleManager = new();
+            // building floor
+            for (int x = 0; x < gBackground.Width; x++)
+            {
+                for (int y = 0; y < gBackground.Height / 2; y++)
+                {
+                    gBackground[y + gBackground.Height / 2, x] = Icons.GetShade((float)y / (gBackground.Height / 2 - 1), Icons.ShadingFloor, r.Next(-iFloorTextureRandOffset, iFloorTextureRandOffset + 1), flipRange: true);
+                }
+            }
+
+            CharGrid gMap = CharGrid.Load(Path.Combine("maps", "test.txt"));
+            CharGrid gMinimap = new(gMap);
+
+            Entity ePlayer = new(
+                icon: Icons.Player,
+                x: 1f,
+                y: 1f,
+                walkSpeed: 6,
+                rotationSpeed: 3,
+                fov: (float)(Math.PI / 3),
+                fovDepth: 16);
+
+            ConsoleHandler Window = new();
             FPSManager fpsManager = new();
-            Entity ePlayer = new(icon: Icons.Player, x: 1f, y: 1f, walkSpeed: 6, rotationSpeed: 3, fov: (float)(Math.PI / 3), fovDepth: 16);
             UserInputHandler userInputHandler = new();
             CultureInfo clt = CultureInfo.InvariantCulture;
+
             userInputHandler.StartHandlingInputAsync();
 
             bool mainLoop = true;
@@ -56,25 +78,35 @@ namespace ConsoleGame
                     // strafe left
                     case ConsoleKey.NumPad7:
                         ePlayer.Walk(fpsManager.deltaTime, angleIncr: (float)(-Math.PI / 2));
-                        pFloor.Slide(offsetX: 1);
+                        gBackground.Slide(offsetX: 1);
                         break;
 
                     // strafe right
                     case ConsoleKey.NumPad9:
                         ePlayer.Walk(fpsManager.deltaTime, angleIncr: (float)(Math.PI / 2));
-                        pFloor.Slide(offsetX: -1);
+                        gBackground.Slide(offsetX: -1);
                         break;
 
                     // turn left
                     case ConsoleKey.NumPad4:
                         ePlayer.RotateLeft(fpsManager.deltaTime);
-                        pFloor.Slide(offsetX: 1);
+                        gBackground.Slide(offsetX: 1);
                         break;
 
                     // turn right
                     case ConsoleKey.NumPad6:
                         ePlayer.RotateRight(fpsManager.deltaTime);
-                        pFloor.Slide(offsetX: -1);
+                        gBackground.Slide(offsetX: -1);
+                        break;
+
+                    // add to var
+                    case ConsoleKey.NumPad1:
+                        worldWallHeight += 0.001f;
+                        break;
+
+                    // sub from var
+                    case ConsoleKey.NumPad3:
+                        worldWallHeight -= 0.001f;
                         break;
 
                     // exit
@@ -84,12 +116,12 @@ namespace ConsoleGame
                 }
 
                 // DDA Raycast loop, 2D to 3D screen projection
-                pMiniMap.Impose(pMap);
-                Plane pWalls = new(pScreen.Width, pScreen.Height);
+                gMinimap.Impose(gMap);
+                CharGrid pWalls = new(gScreen.Width, gScreen.Height);
                 fVector2D vRayStart = new(ePlayer.X, ePlayer.Y);
-                for (int x = 0; x < pScreen.Width; x++)
+                for (int x = 0; x < gScreen.Width; x++)
                 {
-                    float relativeX = (x - pScreen.Width / 2f) / pScreen.Width;
+                    float relativeX = (x - gScreen.Width / 2f) / gScreen.Width;
                     float rayAngle = ePlayer.Angle + relativeX * ePlayer.FOV;
                     fVector2D vRayDir = new((float)Math.Cos(rayAngle), (float)Math.Sin(rayAngle));
                     fVector2D vRayUnitStepSize = new((float)Math.Sqrt(1 + (vRayDir.Y / vRayDir.X) * (vRayDir.Y / vRayDir.X)),
@@ -138,53 +170,60 @@ namespace ConsoleGame
                             vRayLength1D.Y += vRayUnitStepSize.Y;
                         }
 
-                        if (pMap.Validate(vMapCheck) && pMap[vMapCheck.Y, vMapCheck.X] == Icons.Wall)
+                        if (gMap.Validate(vMapCheck) && gMap[vMapCheck.Y, vMapCheck.X] == Icons.Wall)
                         {
                             bTileFound = true;
                         }
                     }
 
                     fVector2D vIntersection = vRayStart + vRayDir * fDistance;
+                    
                     // fisheye distortion fix
                     fDistance *= (float)Math.Cos((relativeX * ePlayer.FOV) % (Math.PI * 2));
 
                     if (bTileFound)
                     {
-                        // Visualizing POV on minimap
-                        pMiniMap[vMapCheck] = Icons.MiniMap_Wall;
+                        gMinimap[vMapCheck] = Icons.MiniMap_WallIntersected;
 
-                        // Drawing wall column
-                        int minWallHeight = 0;
-                        int maxWallHeight = 28;
+                        // Calculate the wall height based on distance
+                        int wallHeight = (int)(gScreen.Height / fDistance);
+                        wallHeight = Math.Clamp(wallHeight, 0, gScreen.Height / 2);
 
-                        float fDistanceUnit = (fDistance / ePlayer.fovDepth);
+                        // Determine horizontal texture offset (unchanged)
+                        int x_texture = Math.Round(vIntersection.X, 4) % 1 == 0 ?
+                            (int)((vIntersection.Y - (float)Math.Floor(vIntersection.Y)) * gWallTexture.Width) :
+                            (int)((vIntersection.X - (float)Math.Floor(vIntersection.X)) * gWallTexture.Width);
 
-                        int wallCloseOffset = (pScreen.Height - maxWallHeight) / 2;
-                        int wallFarOffset = (pScreen.Height - minWallHeight) / 2;
-
-                        int wallVerticalOffset = (int)(wallCloseOffset + fDistanceUnit * ( wallFarOffset - wallCloseOffset));
-                        wallVerticalOffset = Math.Min(Math.Max(0, wallVerticalOffset), pScreen.Height);
-
-                        for (int i = wallVerticalOffset; i < pScreen.Height - wallVerticalOffset; i++)
+                        // Draw the wall slice with perspective correction
+                        for (int y = gScreen.Height / 2 - wallHeight; y < gScreen.Height / 2 + wallHeight; y++)
                         {
-                            pWalls[i, x] = Icons.GetShade(fDistance / ePlayer.fovDepth, Icons.ShadingWall, vIntersection.IsVertex(0.075f) ? +1 : 0);
+                            // Calculate the ray position on the wall in world space (-0.5 to 0.5)
+                            float rayDirectionY = (y - gScreen.Height / 2) / (float)gScreen.Height;
+
+                            // Apply perspective correction
+                            float perspectiveCorrection = rayDirectionY * fDistance / worldWallHeight;
+
+                            // Clamp the perspective correction to valid texture coordinates
+                            perspectiveCorrection = Math.Clamp(perspectiveCorrection + verticalTextureOffset, 0, 1);
+
+                            // Sample the texture with the corrected coordinate
+                            int y_texture = (int)(perspectiveCorrection * (gWallTexture.Height - 1));
+
+                            pWalls[y, x] = gWallTexture[y_texture, x_texture];
                         }
                     }
                 }
 
-
                 // Screen updates
-                pMiniMap[(int)ePlayer.Y, (int)ePlayer.X] = ePlayer.Icon;
-                pScreen.Impose(pFloor, y: pScreen.Height - pFloor.Height);
-                pScreen.Impose(pWalls, allowTransparency: true);
-                pScreen.Impose($"FPS: {fpsManager.CurrentFPS} | Player XYA ({ePlayer.X.ToString("0.0", clt)}, {ePlayer.Y.ToString("0.0", clt)}, {ePlayer.Angle.ToString("0.0", clt)}) | Map size: ({pMiniMap.Width}, {pMiniMap.Height}) | {userInputHandler.pressedKey}");
-                pScreen.Impose(pMiniMap, y:1);
-                consoleManager.Write(pScreen.Arr);
-                pScreen.Fill(' ');
+                gMinimap[(int)ePlayer.Y, (int)ePlayer.X] = ePlayer.Icon;
+                gScreen.Impose(gBackground);
+                gScreen.Impose(pWalls, allowTransparency: true);
+                gScreen.Impose($"FPS: {fpsManager.CurrentFPS} | Player XYA ({ePlayer.X.ToString("0.0", clt)}, {ePlayer.Y.ToString("0.0", clt)}, {ePlayer.Angle.ToString("0.0", clt)}) | Map size: ({gMinimap.Width}, {gMinimap.Height}) | var: {worldWallHeight}");
+                gScreen.Impose(gMinimap, y: 1);
+                Window.Write(gScreen, doNotChunk: true);
+                gScreen.Fill(' ');
             }
-
             userInputHandler.StopHandlingInput();
-
         }
     }
 }

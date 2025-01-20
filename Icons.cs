@@ -1,18 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing.Text;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConsoleGame
+﻿namespace ConsoleGame
 {
     internal class Icons
     {
-        public static readonly char Wall =  '█';
-        public static readonly char MiniMap_Wall = '#';
-        public static readonly char Air =   ' ';
+        public static readonly char Wall = '█';
+        public static readonly char MiniMap_WallIntersected = '#';
+        public static readonly char Air = ' ';
         public static readonly char Player = '☻';
+        public static readonly string Stars = "*.°";
         public static readonly string ShadingWall = "█▓▒░";
         public static readonly string ShadingFloor = "YQXz/*cr!+<>;=^,_:'-.` ";
         //public static readonly string ShadingFloor = """.'`^",:;Il!i><~+_-?][}{1)(|\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$""";
@@ -28,7 +22,7 @@ namespace ConsoleGame
             {
                 return g[Math.Min(GetShadeIndex(n, g) + offset, g.Length - 1)];
             }
-            else if (offset < 0) 
+            else if (offset < 0)
             {
                 return g[Math.Max(GetShadeIndex(n, g) + offset, 0)];
             }

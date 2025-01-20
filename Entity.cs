@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ConsoleGame
+﻿namespace ConsoleGame
 {
     public class Entity : fVector2D
     {
@@ -17,12 +11,12 @@ namespace ConsoleGame
 
         public Entity(
             char icon,
-            float x = 0, 
-            float y = 0, 
-            float angle = 0, 
-            float walkSpeed = 1f, 
-            float rotationSpeed = 1f, 
-            float fov = (float)Math.PI/2, 
+            float x = 0,
+            float y = 0,
+            float angle = 0,
+            float walkSpeed = 1f,
+            float rotationSpeed = 1f,
+            float fov = (float)Math.PI / 2,
             int fovDepth = 16
             )
         {
