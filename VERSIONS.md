@@ -31,7 +31,6 @@ ___
 - Added the initial version of the project.
 - Loads an ASCII game map from a text file, initializes the player entity and renders it's POV through DDA raycasting.
 - Contains a simple input handler for moving the player entity around the map, based on reading the console window input. 
-	- A bit limited due to the OS level key press delay when holding down a key. This should be fixed in the future.
 - Renders the minimap on screen, with the player entity represented by a '☻', and the walls that are rendered by '#'.
 
 ![v0](previews/Preview_20250112.gif)
