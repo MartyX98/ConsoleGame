@@ -92,6 +92,10 @@
             X = (float)Math.Round(X, decimalPlaces);
             Y = (float)Math.Round(Y, decimalPlaces);
         }
+
+        public float Distance(fVector2D other) => (float)Math.Sqrt(Math.Pow(X - other.X, 2) + Math.Pow(Y - other.Y, 2));
+
+
     }
     public class iVector2D
     {
@@ -170,6 +174,10 @@
 
         // Implicit conversion to tuple
         public static implicit operator (int x, int y)(iVector2D vector) => (vector.X, vector.Y);
+
+        // Custom
+        public float Distance(fVector2D other) => (float)Math.Sqrt(Math.Pow(X - other.X, 2) + Math.Pow(Y - other.Y, 2));
+
     }
 
     // Not used - unecessary performance overhead at runtime

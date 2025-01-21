@@ -2,13 +2,14 @@
 {
     internal class Icons
     {
-        public static readonly char Wall = '█';
-        public static readonly char MiniMap_WallIntersected = '#';
-        public static readonly char Air = ' ';
-        public static readonly char Player = '☻';
-        public static readonly string Stars = "*.°";
-        public static readonly string ShadingWall = "█▓▒░";
-        public static readonly string ShadingFloor = "YQXz/*cr!+<>;=^,_:'-.` ";
+        public const char Wall = '█';
+        public const char Tree = 'T';
+        public const char RayCollisionFlag = '#';
+        public const char Air = ' ';
+        public const char Player = '☻';
+        public const string Stars = "*.°";
+        public const string ShadingWall = "█▓▒░";
+        public const string ShadingFloor = "YQXz/*cr!+<>;=^,_:'-.` ";
         //public static readonly string ShadingFloor = """.'`^",:;Il!i><~+_-?][}{1)(|\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$""";
 
         public static char GetShade(float n, string g, int offset = 0, bool flipRange = false)

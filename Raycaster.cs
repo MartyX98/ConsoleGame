@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using static ConsoleGame.Raycaster;
 
 namespace ConsoleGame
 {
@@ -14,8 +10,9 @@ namespace ConsoleGame
         private static readonly iVector2D vMapCheck = new();
         private static readonly fVector2D vRayLength1D = new();
         private static readonly iVector2D vStep = new();
+        private static float fDistance = 0f;
 
-        public static CastResult CastRay(CharGrid gMap, fVector2D vRayStart, float fRayAngle, float fMaxRayDistance, char[] rayCollidables)
+        public static IEnumerable<CastResult> CastRay(CharGrid gMap, fVector2D vRayStart, float fRayAngle, float fMaxRayDistance, char[] solidObjects, char[] transparentObjects)
         {
             vRayDir.X = (float)Math.Cos(fRayAngle);
             vRayDir.Y = (float)Math.Sin(fRayAngle);
@@ -27,6 +24,7 @@ namespace ConsoleGame
             vRayLength1D.Y = 0;
             vStep.X = 0;
             vStep.Y = 0;
+            fDistance = 0f;
 
             // determine step directions on x and y axis
             if (vRayDir.X < 0)
@@ -52,9 +50,7 @@ namespace ConsoleGame
             }
 
             // DDA walk
-            bool bIntersectionFlag = false;
-            float fDistance = 0f;
-            while (!bIntersectionFlag && fDistance < fMaxRayDistance)
+            while (fDistance < fMaxRayDistance)
             {
                 if (vRayLength1D.X < vRayLength1D.Y)
                 {
@@ -69,21 +65,50 @@ namespace ConsoleGame
                     vRayLength1D.Y += vRayUnitStepSize.Y;
                 }
 
-                if (gMap.Validate(vMapCheck) && rayCollidables.Contains(gMap[vMapCheck.Y, vMapCheck.X]))
+                if (gMap.Validate(vMapCheck))
                 {
-                    bIntersectionFlag = true;
+                    if (solidObjects.Contains(gMap[vMapCheck.Y, vMapCheck.X]))
+                    {
+                        yield return new CastResult()
+                        {
+                            HitObject = gMap[vMapCheck.Y, vMapCheck.X],
+                            Distance = fDistance,
+                            GridIntersection = new iVector2D(vMapCheck),
+                            ExactIntersection = vRayStart + vRayDir * fDistance,
+                        };
+                        yield break;
+                    }
+
+                    if (transparentObjects.Contains(gMap[vMapCheck.Y, vMapCheck.X]))
+                    {
+                        yield return new CastResult()
+                        {
+                            HitObject = gMap[vMapCheck.Y, vMapCheck.X],
+                            Distance = fDistance,
+                            GridIntersection = new iVector2D(vMapCheck),
+                            ExactIntersection = vRayStart + vRayDir * fDistance,
+                        };
+                    }
                 }
             }
-
-            // return result
-            return new CastResult()
-            {
-                HitObject = gMap[vMapCheck.Y, vMapCheck.X],
-                Distance = fDistance,
-                GridIntersection = new iVector2D(vMapCheck),
-                ExactIntersection = vRayStart + vRayDir * fDistance,
-            };
         }
+
+        public static IEnumerable<(int, CastResult)> CastRays(fVector2D origin, float direction, float fov, float maxDepth, int numRays, CharGrid gMap, char[] solidObjects, char[] transparentObjects, bool correctFisheEye = true)
+        {
+            float angleStep = fov / (numRays - 1);
+
+            for (int i = 0; i < numRays; i++)
+            {
+                float rayAngle = direction - (fov / 2) + (i * angleStep);
+                foreach (var result in CastRay(gMap, origin, rayAngle, maxDepth, solidObjects, transparentObjects))
+                {
+                    yield return (i, result);
+                }
+            }
+        }
+
+        public static IEnumerable<(int, CastResult)> CastRays(Entity origin, int numRays, CharGrid gMap, char[] solidObjects, char[] transparentObjects) =>
+            CastRays(origin, origin.Angle, origin.FOV, origin.fovDepth, numRays, gMap, solidObjects, transparentObjects);
 
         public struct CastResult
         {
