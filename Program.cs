@@ -1,4 +1,6 @@
-﻿using System.Globalization;
+﻿using System.Collections.Generic;
+using System.Globalization;
+using static ConsoleGame.Raycaster;
 
 namespace ConsoleGame
 {
@@ -7,11 +9,12 @@ namespace ConsoleGame
         public static void Main()
         {
             CharGrid gScreen = new(120, 30); // This is the final layer to be written into the console
-            CharGrid gBackgroundLayer = new(gScreen.Width, gScreen.Height); // Holds background texture of floor and sky. Only transforms, but should remain the same.
+            CharGrid gBgSky = new(gScreen.Width, gScreen.Height); // Holds background texture of sky.
+            CharGrid gBgFloor = new(gScreen.Width, gScreen.Height); // Holds background texture of floor.
             CharGrid gRaycastLayer = new(gScreen.Width, gScreen.Height); // Projected results of raycasting. Is updated on every game iteration.
             CharGrid gWallTexture = CharGrid.Load(Path.Combine("textures", "wall.txt"));
-            CharGrid gTreeTexture = CharGrid.Load(Path.Combine("textures", "tree.txt"));
-            CharGrid gMap = CharGrid.Load(Path.Combine("maps", "test.txt")); // World map to be played on
+            CharGrid gTreeTexture = CharGrid.Load(Path.Combine("textures", "debug_texture.txt"));
+            CharGrid gMap = CharGrid.Load(Path.Combine("maps", "default.txt")); // World map to be played on
             CharGrid gMinimapLayer = new(gMap); // Copy of world map to be projected as minimap
             char[] solidObjects = [Icons.Wall];
             char[] transparentObjects = [Icons.Tree];
@@ -37,20 +40,20 @@ namespace ConsoleGame
             float fSkyStarDensity = 1f / 40;
 
             // building sky
-            for (int x = 0; x < gBackgroundLayer.Width; x++)
+            for (int x = 0; x < gBgSky.Width; x++)
             {
-                for (int y = 0; y < gBackgroundLayer.Height / 2; y++)
+                for (int y = 0; y < gBgSky.Height / 2; y++)
                 {
-                    gBackgroundLayer[y, x] = gRandom.NextSingle() <= fSkyStarDensity ? Icons.Stars[gRandom.Next(0, Icons.Stars.Length)] : Icons.Air;
+                    gBgSky[y, x] = gRandom.NextSingle() <= fSkyStarDensity ? Icons.Stars[gRandom.Next(0, Icons.Stars.Length)] : Icons.Air;
                 }
             }
 
             // building floor
-            for (int x = 0; x < gBackgroundLayer.Width; x++)
+            for (int x = 0; x < gBgFloor.Width; x++)
             {
-                for (int y = 0; y < gBackgroundLayer.Height / 2; y++)
+                for (int y = 0; y < gBgFloor.Height / 2; y++)
                 {
-                    gBackgroundLayer[y + gBackgroundLayer.Height / 2, x] = Icons.GetShade((float)y / (gBackgroundLayer.Height / 2 - 1), Icons.ShadingFloor, gRandom.Next(-iFloorTextureRandomOffset, iFloorTextureRandomOffset + 1), flipRange: true);
+                    gBgFloor[y + gBgFloor.Height / 2, x] = Icons.GetShade((float)y / (gBgFloor.Height / 2 - 1), Icons.ShadingFloor, gRandom.Next(-iFloorTextureRandomOffset, iFloorTextureRandomOffset + 1), flipRange: true);
                 }
             }
 
@@ -77,25 +80,27 @@ namespace ConsoleGame
                     // strafe left
                     case ConsoleKey.NumPad7:
                         ePlayer.Walk(fpsManager.deltaTime, angleIncr: (float)(-Math.PI / 2));
-                        gBackgroundLayer.Slide(offsetX: 1);
+                        gBgFloor.Slide(offsetX: 1);
                         break;
 
                     // strafe right
                     case ConsoleKey.NumPad9:
                         ePlayer.Walk(fpsManager.deltaTime, angleIncr: (float)(Math.PI / 2));
-                        gBackgroundLayer.Slide(offsetX: -1);
+                        gBgFloor.Slide(offsetX: -1);
                         break;
 
                     // turn left
                     case ConsoleKey.NumPad4:
                         ePlayer.RotateLeft(fpsManager.deltaTime);
-                        gBackgroundLayer.Slide(offsetX: 1);
+                        gBgSky.Slide(offsetX: 1);
+                        gBgFloor.Slide(offsetX: 1);
                         break;
 
                     // turn right
                     case ConsoleKey.NumPad6:
                         ePlayer.RotateRight(fpsManager.deltaTime);
-                        gBackgroundLayer.Slide(offsetX: -1);
+                        gBgSky.Slide(offsetX: -1);
+                        gBgFloor.Slide(offsetX: -1);
                         break;
 
                     // exit
@@ -104,59 +109,103 @@ namespace ConsoleGame
                         break;
                 }
 
-                // DDA Raycast loop, 2D to 3D screen projection
                 gMinimapLayer.Impose(gMap);
                 gRaycastLayer.Fill(Icons.Air);
 
-                foreach ((int x, Raycaster.CastResult castResult) in Raycaster.CastRays(ePlayer, gScreen.Width, gMap, solidObjects, transparentObjects))
+                // DDA Raycast loop, 2D to 3D screen projection
+
+                int x = 0;
+                foreach (IEnumerable<RayIntersection> ray in CastRaysWithinFOV(ePlayer, gScreen.Width, gMap))
                 {
-                    CharGrid texture;
-                    switch (castResult.HitObject)
+                    foreach (RayIntersection castResult in ray)
                     {
-                        case Icons.Wall:
-                            texture = gWallTexture; break;
-                        case Icons.Tree:
-                            texture = gTreeTexture; break;
-                        default:
+                        if (castResult.Distance >= ePlayer.viewDistance)
+                            break;
+                        if (castResult.IntersectedObj == Icons.Air)
                             continue;
+
+                        CharGrid texture;
+                        switch (castResult.IntersectedObj)
+                        {
+                            case Icons.Wall:
+                                texture = gWallTexture; break;
+                            case Icons.Tree:
+                                texture = gTreeTexture; break;
+                            default:
+                                continue;
+                        }
+
+                        gMinimapLayer[castResult.IvIntersection] = Icons.RayCollisionFlag;
+
+                        if (castResult.IntersectedObj == Icons.Tree)
+                        {
+                            fVector2D spriteOrigin = new(castResult.IvIntersection + 0.5f);
+                            float spriteAngleOfOrigin = (float)Math.Atan2(spriteOrigin.Y, spriteOrigin.X) - ePlayer.Angle;
+                            float spriteDistance = ePlayer.Distance(spriteOrigin);
+
+                            // Calculate the screen position of the sprite
+                            int spriteScreenX = (int)((0.5f * (1 + (float)Math.Tan(spriteAngleOfOrigin - ePlayer.Angle) / ePlayer.FOV) * gScreen.Width));
+                            int spriteHeight = (int)(gScreen.Height / spriteDistance);
+                            spriteHeight = Math.Clamp(spriteHeight, 0, gScreen.Height);
+
+                            // Draw the sprite
+                            for (int y = gScreen.Height / 2 - spriteHeight / 2; y < gScreen.Height / 2 + spriteHeight / 2; y++)
+                            {
+                                for (int _x = spriteScreenX - spriteHeight / 2; _x < spriteScreenX + spriteHeight / 2; _x++)
+                                {
+                                    if (_x >= 0 && _x < gScreen.Width && y >= 0 && y < gScreen.Height)
+                                    {
+                                        int textureSampleX = (_x - (spriteScreenX - spriteHeight / 2)) * gTreeTexture.Width / spriteHeight;
+                                        int textureSampleY = (y - (gScreen.Height / 2 - spriteHeight / 2)) * gTreeTexture.Height / spriteHeight;
+
+                                        if (gTreeTexture[textureSampleY, textureSampleX] != Icons.Air)
+                                        {
+                                            gRaycastLayer[y, _x] = gTreeTexture[textureSampleY, textureSampleX];
+                                        }
+                                    }
+                                }
+                            }
+
+                            continue;
+                        }
+
+                        else if (castResult.IntersectedObj == Icons.Wall)
+                        {
+                            // Calculate the wall height based on distance
+                            int wallSliceHeight = (int)(gScreen.Height / castResult.Distance);
+                            wallSliceHeight = Math.Clamp(wallSliceHeight, 0, gScreen.Height / 2);
+
+                            // Determine horizontal texture offset depending on which axis a ray
+                            int textureSampleX = Math.Abs(castResult.FvIntersection.X - Math.Round(castResult.FvIntersection.X)) < 0.1 ?
+                                (int)(castResult.FvIntersection.Y % 1 * texture.Width) :
+                                (int)(castResult.FvIntersection.X % 1 * texture.Width);
+
+                            // Draw the wall slice with perspective correction
+                            for (int y = gScreen.Height / 2 - wallSliceHeight; y < gScreen.Height / 2 + wallSliceHeight; y++)
+                            {
+                                // Calculate the ray position on the wall in world space (-0.5 to 0.5)
+                                float rayDirectionY = (y - gScreen.Height / 2) / (float)gScreen.Height;
+
+                                // Apply perspective correction
+                                float perspectiveCorrection = rayDirectionY * castResult.Distance / fWallHeight;
+                                perspectiveCorrection = Math.Clamp(perspectiveCorrection + fTextureVerticalOffset, 0, 1);
+
+                                int textureSampleY = (int)(perspectiveCorrection * (texture.Height - 1));
+
+                                if (gRaycastLayer[y, x] == Icons.Air)
+                                    gRaycastLayer[y, x] = texture[textureSampleY, textureSampleX];
+                            }
+
+                            break;
+                        }
                     }
-
-                    // fisheye distortion fix
-                    float correctedDistance = castResult.Distance * (float)Math.Cos(((x - gScreen.Width / 2f) / gScreen.Width * ePlayer.FOV) % (Math.PI * 2));
-                    gMinimapLayer[castResult.GridIntersection] = Icons.RayCollisionFlag;
-
-                    // Calculate the wall height based on distance
-                    int wallSliceHeight = (int)(gScreen.Height / correctedDistance);
-                    wallSliceHeight = Math.Clamp(wallSliceHeight, 0, gScreen.Height / 2);
-
-                    // Determine horizontal texture offset
-                    int textureX = Math.Round(castResult.ExactIntersection.X, 4) % 1 == 0 ?
-                        (int)((castResult.ExactIntersection.Y - (float)Math.Floor(castResult.ExactIntersection.Y)) * texture.Width) :
-                        (int)((castResult.ExactIntersection.X - (float)Math.Floor(castResult.ExactIntersection.X)) * texture.Width);
-
-                    // Draw the wall slice with perspective correction
-                    for (int y = gScreen.Height / 2 - wallSliceHeight; y < gScreen.Height / 2 + wallSliceHeight; y++)
-                    {
-                        // Calculate the ray position on the wall in world space (-0.5 to 0.5)
-                        float rayDirectionY = (y - gScreen.Height / 2) / (float)gScreen.Height;
-
-                        // Apply perspective correction
-                        float perspectiveCorrection = rayDirectionY * correctedDistance / fWallHeight;
-
-                        // Clamp the perspective correction to valid texture coordinates
-                        perspectiveCorrection = Math.Clamp(perspectiveCorrection + fTextureVerticalOffset, 0, 1);
-
-                        // Sample the texture with the corrected coordinate
-                        int textureY = (int)(perspectiveCorrection * (texture.Height - 1));
-
-                        if (gRaycastLayer[y, x] == Icons.Air)
-                            gRaycastLayer[y, x] = texture[textureY, textureX];
-                    }
+                    x++;
                 }
 
                 // Screen updates
                 gMinimapLayer[(int)ePlayer.Y, (int)ePlayer.X] = ePlayer.Icon;
-                gScreen.Impose(gBackgroundLayer);
+                gScreen.Impose(gBgSky);
+                gScreen.Impose(gBgFloor, allowTransparency: true);
                 gScreen.Impose(gRaycastLayer, allowTransparency: true);
                 gScreen.Impose($"FPS: {fpsManager.CurrentFPS} | Player XYA ({ePlayer.X.ToString("0.0", cultureInfo)}, {ePlayer.Y.ToString("0.0", cultureInfo)}, {ePlayer.Angle.ToString("0.0", cultureInfo)}) | Map size: ({gMinimapLayer.Width}, {gMinimapLayer.Height})");
                 gScreen.Impose(gMinimapLayer, y: 1);

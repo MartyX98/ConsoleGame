@@ -1,6 +1,4 @@
-﻿using static ConsoleGame.Raycaster;
-
-namespace ConsoleGame
+﻿namespace ConsoleGame
 {
     public static class Raycaster
     {
@@ -12,7 +10,7 @@ namespace ConsoleGame
         private static readonly iVector2D vStep = new();
         private static float fDistance = 0f;
 
-        public static IEnumerable<CastResult> CastRay(CharGrid gMap, fVector2D vRayStart, float fRayAngle, float fMaxRayDistance, char[] solidObjects, char[] transparentObjects)
+        public static IEnumerable<RayIntersection> CastRay(CharGrid gMap, fVector2D vRayStart, float fRayAngle, float fMaxRayDistance = 0)
         {
             vRayDir.X = (float)Math.Cos(fRayAngle);
             vRayDir.Y = (float)Math.Sin(fRayAngle);
@@ -50,7 +48,7 @@ namespace ConsoleGame
             }
 
             // DDA walk
-            while (fDistance < fMaxRayDistance)
+            while (fMaxRayDistance <= 0 || fDistance < fMaxRayDistance)
             {
                 if (vRayLength1D.X < vRayLength1D.Y)
                 {
@@ -67,55 +65,46 @@ namespace ConsoleGame
 
                 if (gMap.Validate(vMapCheck))
                 {
-                    if (solidObjects.Contains(gMap[vMapCheck.Y, vMapCheck.X]))
+                    var result = new RayIntersection()
                     {
-                        yield return new CastResult()
-                        {
-                            HitObject = gMap[vMapCheck.Y, vMapCheck.X],
-                            Distance = fDistance,
-                            GridIntersection = new iVector2D(vMapCheck),
-                            ExactIntersection = vRayStart + vRayDir * fDistance,
-                        };
-                        yield break;
-                    }
-
-                    if (transparentObjects.Contains(gMap[vMapCheck.Y, vMapCheck.X]))
-                    {
-                        yield return new CastResult()
-                        {
-                            HitObject = gMap[vMapCheck.Y, vMapCheck.X],
-                            Distance = fDistance,
-                            GridIntersection = new iVector2D(vMapCheck),
-                            ExactIntersection = vRayStart + vRayDir * fDistance,
-                        };
-                    }
+                        IntersectedObj = gMap[vMapCheck.Y, vMapCheck.X],
+                        Distance = fDistance,
+                        IvIntersection = new iVector2D(vMapCheck),
+                        FvIntersection = vRayStart + vRayDir * fDistance,
+                    };
+                    yield return result;
                 }
             }
         }
 
-        public static IEnumerable<(int, CastResult)> CastRays(fVector2D origin, float direction, float fov, float maxDepth, int numRays, CharGrid gMap, char[] solidObjects, char[] transparentObjects, bool correctFisheEye = true)
+        public static IEnumerable<IEnumerable<RayIntersection>> CastRaysWithinFOV(fVector2D origin, float direction, float fov, float maxDistance, int numRays, CharGrid gMap, bool fixFishEyeDistortion = true)
         {
             float angleStep = fov / (numRays - 1);
 
             for (int i = 0; i < numRays; i++)
             {
-                float rayAngle = direction - (fov / 2) + (i * angleStep);
-                foreach (var result in CastRay(gMap, origin, rayAngle, maxDepth, solidObjects, transparentObjects))
-                {
-                    yield return (i, result);
-                }
+                float angleOffset = - (fov / 2) + (i * angleStep);
+                float rayAngle = direction + angleOffset;
+                if (fixFishEyeDistortion)
+                    yield return CastRay(gMap, origin, rayAngle, maxDistance).Select(result =>
+                        {
+                            result.Distance *= (float)Math.Cos(angleOffset);
+                            return result;
+                        });
+                else
+                    yield return CastRay(gMap, origin, rayAngle, maxDistance);
             }
         }
 
-        public static IEnumerable<(int, CastResult)> CastRays(Entity origin, int numRays, CharGrid gMap, char[] solidObjects, char[] transparentObjects) =>
-            CastRays(origin, origin.Angle, origin.FOV, origin.fovDepth, numRays, gMap, solidObjects, transparentObjects);
+        public static IEnumerable<IEnumerable<RayIntersection>> CastRaysWithinFOV(Entity origin, int numRays, CharGrid gMap, bool fixFishEyeDistortion = true) =>
+            CastRaysWithinFOV(origin, origin.Angle, origin.FOV, origin.viewDistance, numRays, gMap, fixFishEyeDistortion);
 
-        public struct CastResult
+        public class RayIntersection
         {
-            public char HitObject { get; set; }
-            public float Distance { get; set; }
-            public required iVector2D GridIntersection { get; set; }
-            public required fVector2D ExactIntersection { get; set; }
+            public required char IntersectedObj { get; set; }
+            public required float Distance { get; set; }
+            public required iVector2D IvIntersection { get; set; }
+            public required fVector2D FvIntersection { get; set; }
         }
     }
 }

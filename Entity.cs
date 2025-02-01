@@ -4,7 +4,7 @@
     {
         public float Angle;
         public float FOV;
-        public float fovDepth;
+        public float viewDistance;
         public float WalkSpeed;
         public float RotationSpeed;
         public char Icon;
@@ -26,23 +26,23 @@
             Icon = icon;
             WalkSpeed = walkSpeed;
             FOV = fov;
-            this.fovDepth = fovDepth;
+            this.viewDistance = fovDepth;
             RotationSpeed = rotationSpeed;
         }
 
-        public void Rotate(float angle)
+        public void Rotate(float deltaAngle)
         {
-            Angle = (float)((Angle + angle) % (Math.PI * 2));
+            Angle = (float)((Angle + deltaAngle) % (Math.PI * 2));
         }
 
         public void RotateLeft(float fElapsedTime)
         {
-            Rotate((float)-RotationSpeed * fElapsedTime);
+            Rotate(-RotationSpeed * fElapsedTime);
         }
 
         public void RotateRight(float fElapsedTime)
         {
-            Rotate((float)RotationSpeed * fElapsedTime);
+            Rotate(RotationSpeed * fElapsedTime);
         }
 
         public void Walk(float fElapsedTime, float speedMult = 1f, float angleIncr = 0f)

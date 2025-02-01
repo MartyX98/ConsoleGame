@@ -134,13 +134,18 @@
         public int Dot(iVector2D other) => X * other.X + Y * other.Y;
 
         // Addition
-        public static iVector2D operator +(iVector2D a, iVector2D b) => new iVector2D(a.X + b.X, a.Y + b.Y);
+        public static iVector2D operator +(iVector2D a, iVector2D b) => new(a.X + b.X, a.Y + b.Y);
+        public static iVector2D operator +(iVector2D a, int b) => new(a.X + b, a.Y + b);
+        public static fVector2D operator +(iVector2D a, float b) => new(a.X + b, a.Y + b);
 
         // Subtraction
-        public static iVector2D operator -(iVector2D a, iVector2D b) => new iVector2D(a.X - b.X, a.Y - b.Y);
+        public static iVector2D operator -(iVector2D a, iVector2D b) => new(a.X - b.X, a.Y - b.Y);
+        public static iVector2D operator -(iVector2D a, int b) => new(a.X - b, a.Y - b);
+        public static fVector2D operator -(iVector2D a, float b) => new(a.X - b, a.Y - b);
+
 
         // Scalar multiplication
-        public static iVector2D operator *(iVector2D a, int scalar) => new iVector2D(a.X * scalar, a.Y * scalar);
+        public static iVector2D operator *(iVector2D a, int scalar) => new(a.X * scalar, a.Y * scalar);
 
         public static iVector2D operator *(int scalar, iVector2D a) => a * scalar;
 
@@ -149,6 +154,12 @@
         {
             if (scalar == 0) throw new DivideByZeroException("Cannot divide by zero.");
             return new iVector2D(a.X / scalar, a.Y / scalar);
+        }
+
+        public static fVector2D operator /(iVector2D a, float b)
+        {
+            if (b == 0) throw new DivideByZeroException("Cannot divide by zero.");
+            return new fVector2D(a.X / b, a.Y / b);
         }
 
         // Equality
