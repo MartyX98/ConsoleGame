@@ -1,5 +1,4 @@
-﻿using MonoDebugger;
-using System.Globalization;
+﻿using System.Globalization;
 using static ConsoleGame.Raycaster;
 
 namespace ConsoleGame

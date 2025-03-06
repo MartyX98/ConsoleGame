@@ -307,21 +307,6 @@ namespace ConsoleGame
         public void Add(Shape[] shapes) => Shapes = [.. Shapes, .. shapes];
         public void Remove(Shape shape) => Shapes = [.. Shapes.Where(s => s != shape)];
         public void Remove(Shape[] shapes) => Shapes = [.. Shapes.Except(shapes)];
-
-        public void RemoveTest(Shape shape)
-        {
-            for (int i = 0; i < Shapes.Length; i++)
-            {
-                if (Shapes[i] == shape)
-                {
-                    shape = null;
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
-                    break;
-                }
-            }
-        }
-
         public void Clear() => Shapes = [];
 
         public bool RaycastAgainst(Vector2 origin, Vector2 direction, out float distance)
