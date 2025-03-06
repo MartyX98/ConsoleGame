@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "ConsoleGame": {
-      "commandName": "Project",
-      "workingDirectory": "C:\\Users\\noetb\\source\\ConsoleGameSolution"
-    }
-  }
-}

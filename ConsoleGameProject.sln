@@ -1,0 +1,47 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.7.34024.191
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleGame", "ConsoleGame\ConsoleGame.csproj", "{41B8848A-DA7E-4573-A959-C4BE997C2C8C}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Shared", "Shared\Shared.shproj", "{080AA7E1-6B60-4D48-9504-13EA74227513}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonoDebugger", "MonoDebugger\MonoDebugger.csproj", "{477E4050-3528-432B-85D0-91604DAAC40E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "maps", "maps", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "previews", "previews", "{72AD9563-9219-4775-8860-F0D4A0A80CA1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "textures", "textures", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
+	ProjectSection(SolutionItems) = preProject
+		textures\wall.txt = textures\wall.txt
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{41B8848A-DA7E-4573-A959-C4BE997C2C8C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{41B8848A-DA7E-4573-A959-C4BE997C2C8C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{41B8848A-DA7E-4573-A959-C4BE997C2C8C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{41B8848A-DA7E-4573-A959-C4BE997C2C8C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{477E4050-3528-432B-85D0-91604DAAC40E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{477E4050-3528-432B-85D0-91604DAAC40E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{477E4050-3528-432B-85D0-91604DAAC40E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{477E4050-3528-432B-85D0-91604DAAC40E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {588B5BE1-E411-4230-B309-0F2EEC3BA8E1}
+	EndGlobalSection
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		Shared\Shared.projitems*{080aa7e1-6b60-4d48-9504-13ea74227513}*SharedItemsImports = 13
+		Shared\Shared.projitems*{41b8848a-da7e-4573-a959-c4be997c2c8c}*SharedItemsImports = 5
+		Shared\Shared.projitems*{477e4050-3528-432b-85d0-91604daac40e}*SharedItemsImports = 5
+	EndGlobalSection
+EndGlobal

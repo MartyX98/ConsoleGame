@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>080aa7e1-6b60-4d48-9504-13ea74227513</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>Shared</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Entity.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Extensions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)FileHelper.cs" />
+    <Compile Include="..\Shared\MapHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Shapes.cs" />
+    <Compile Include="..\Shared\FPSHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Grid.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Raycaster.cs" />
+  </ItemGroup>
+</Project>
