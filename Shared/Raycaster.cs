@@ -2,10 +2,34 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-namespace ConsoleGame
+using System.Runtime.CompilerServices;
+
+namespace Shared
 {
     public static class Raycaster
     {
+        public static int RayMaxCount;
+        public static int RayMaxDist;
+
+        // RayIntersection pool
+        private static RayIntersection[] _rayIntersectionPool;
+        private static int _rayIntersectionPoolCapacity;
+        private static int _rayIntersectionPoolIndex;
+
+        public static void Init(int rayMaxCount, int rayMaxDist)
+        {
+            RayMaxCount = rayMaxCount;
+            RayMaxDist = rayMaxDist;
+
+            _rayIntersectionPoolIndex = 0;
+            _rayIntersectionPoolCapacity = RayMaxCount * RayMaxDist;
+            _rayIntersectionPool = new RayIntersection[_rayIntersectionPoolCapacity];
+            for (int i = 0;  i < _rayIntersectionPoolCapacity; i++)
+            {
+                _rayIntersectionPool[i] = new RayIntersection();
+            }
+        }
+
         /// <summary>
         /// Represents a single step in a ray's lifetime.
         /// </summary>
@@ -17,51 +41,119 @@ namespace ConsoleGame
         /// <param name="distanceToNextTile">The distance from the intersection point to the next tile.</param>
         /// <param name="stepIndex">The index of the step in the ray's lifetime. Shape intersection steps are not included.</param>
         /// <param name="shape">The shape that was hit by the raycast step. If no shape was hit, this value is null.</param>
-        public class RaycastStep(Vector2 position, Vector2 tile, Vector2 direction, float angle, float distance, float distanceToNextTile, int stepIndex, Shape? shape = null)
+        //public abstract class RayIntersection
+        //{
+        //    /// <summary>
+        //    /// The position of the intersection point.
+        //    /// </summary>
+        //    public Vector2 Position { get; set; }
+        //    /// <summary>
+        //    /// The tile position of the ntersection point. (integer values)
+        //    /// </summary>
+        //    public Vector2 TilePosition { get; set; }
+
+        //    private float _angle;
+        //    /// <summary>
+        //    /// The angle of the ray.
+        //    /// </summary>
+        //    public float Angle
+        //    {
+        //        get => _angle;
+        //        set => _angle = value.Mod(MathF.PI * 2);
+        //    }
+        //    /// <summary>
+        //    /// The direction vector of the ray.
+        //    /// </summary>
+        //    public Vector2 Direction { get; set; }
+        //    /// <summary>
+        //    /// The distance from the origin to the intersection point.
+        //    /// </summary>
+        //    public float Distance { get; set; }
+        //    /// <summary>
+        //    /// The distance from the intersection point to the next tile.
+        //    /// </summary>
+        //    public float DistanceToNextTile { get; set; }
+        //    /// <summary>
+        //    /// The index of the step in the ray's lifetime.
+        //    /// </summary>
+        //    /// <remarks>
+        //    /// Shape intersection steps within tiles are not included. Only the steps between tiles are counted.
+        //    /// </remarks>
+        //    public int StepIndex { get; set; }
+        //}
+
+        //public class TileIntersection : RayIntersection { }
+
+        //public class ShapeIntersection : RayIntersection
+        //{
+        //    public required Shape Shape { get; set; }
+        //    public required float NormalizedPosition { get; set; }
+        //}
+
+        public enum RayIntersectionType
         {
+            Tile,
+            Shape,
+        }
+
+        public struct RayIntersection
+        {
+            /// <summary>
+            /// The type of intersection
+            /// </summary>
+            public RayIntersectionType Type;
             /// <summary>
             /// The position of the intersection point.
             /// </summary>
-            public Vector2 Position { get; set; } = position;
+            public Vector2 Position;
             /// <summary>
             /// The tile position of the ntersection point. (integer values)
             /// </summary>
-            public Vector2 Tile { get; set; } = tile;
-            /// <summary>
-            /// The shape that was hit by the raycast step.
-            /// </summary>
-            /// <remarks>
-            /// This value is null if the raycast step did not intersect with any shape.
-            /// </remarks>
-            public Shape? Shape { get; set; } = shape;
+            public Vector2 TilePosition;
             /// <summary>
             /// The angle of the ray.
             /// </summary>
-            public float Angle { get; set; } = angle;
+            public float Angle;
             /// <summary>
             /// The direction vector of the ray.
             /// </summary>
-            public Vector2 Direction { get; set; } = direction;
+            public Vector2 Direction;
             /// <summary>
             /// The distance from the origin to the intersection point.
             /// </summary>
-            public float Distance { get; set; } = distance;
+            public float Distance;
             /// <summary>
             /// The distance from the intersection point to the next tile.
             /// </summary>
-            public float DistanceToNextTile { get; set; } = distanceToNextTile;
+            public float DistanceToNextTile;
             /// <summary>
             /// The index of the step in the ray's lifetime.
             /// </summary>
             /// <remarks>
             /// Shape intersection steps within tiles are not included. Only the steps between tiles are counted.
             /// </remarks>
-            public int StepIndex { get; set; } = stepIndex;
+            public int StepIndex;
+            /// <summary>
+            /// The shape that was intersected if intersection type is Shape
+            /// </summary>
+            public Shape Shape;
+            /// <summary>
+            /// Not sure..
+            /// </summary>
+            public float NormalizedPosition;
+        }
+
+        private static RayIntersection GetPooledRayIntersection()
+        {
+            _rayIntersectionPoolIndex++;
+            if (_rayIntersectionPoolIndex >= _rayIntersectionPoolCapacity)
+                _rayIntersectionPoolIndex = 0;
+            return _rayIntersectionPool[_rayIntersectionPoolIndex];
         }
 
         #region Base Raycasting Methods
-
-        public static IEnumerable<RaycastStep> CastRay(Vector2 origin, float angle)
+        
+        public static IEnumerable<RayIntersection> CastRay(Vector2 origin, float angle)
         {
             Vector2 direction = new(MathF.Cos(angle), MathF.Sin(angle));
             Vector2 unitStepSize = new(
@@ -85,15 +177,16 @@ namespace ConsoleGame
             while (true)
             {
                 float distanceToNextTile = Math.Min(length1D.X, length1D.Y);
-                yield return new RaycastStep(
-                    new Vector2(origin.X + distance * direction.X, origin.Y + distance * direction.Y),
-                    new Vector2(tilePos.X, tilePos.Y),
-                    direction,
-                    angle,
-                    distance,
-                    distanceToNextTile,
-                    step
-                    );
+                RayIntersection ri = GetPooledRayIntersection();
+                ri.Type = RayIntersectionType.Tile;
+                ri.Position = new Vector2(origin.X + distance * direction.X, origin.Y + distance * direction.Y);
+                ri.TilePosition = new Vector2(tilePos.X, tilePos.Y);
+                ri.Direction = direction;
+                ri.Angle = angle;
+                ri.Distance = distance;
+                ri.DistanceToNextTile = distanceToNextTile;
+                ri.StepIndex = step;
+                yield return ri;
 
                 // Calculate the next step
                 distance = distanceToNextTile;
@@ -111,30 +204,31 @@ namespace ConsoleGame
             }
         }
 
-        public static IEnumerable<IEnumerable<RaycastStep>> CastRays(Vector2 origin, float angle, float fov, int numRays)
-        {
-            float halfFov = fov / 2;
-            float rayAngleStep = fov / (numRays - 1);
+        //public static IEnumerable<IEnumerable<TileIntersection>> CastRays(Vector2 origin, float angle, float fov, int numRays)
+        //{
+        //    float halfFov = fov / 2;
+        //    float rayAngleStep = fov / (numRays - 1);
 
-            for (int i = 0; i < numRays; i++)
-            {
-                float currentAngle = numRays > 1 ? angle - halfFov + i * rayAngleStep : angle;
-                yield return CastRay(origin, currentAngle);
-            }
-        }
-        public static IEnumerable<IEnumerable<RaycastStep>> CastRays(Entity entity, int numRays) =>
-           CastRays(entity, entity.Angle, entity.FOV, numRays);
+        //    for (int i = 0; i < numRays; i++)
+        //    {
+        //        float currentAngle = numRays > 1 ? angle - halfFov + i * rayAngleStep : angle;
+        //        yield return CastRay(origin, currentAngle);
+        //    }
+        //}
+
+        //public static IEnumerable<IEnumerable<TileIntersection>> CastRays(Entity entity, int numRays) =>
+        //   CastRays(entity, entity.Angle, entity.FOV, numRays);
 
         #endregion
 
         #region Additional Raycasting Methods
 
-        public static IEnumerable<RaycastStep> CastRayFromTo(Vector2 origin, Vector2 target)
+        public static IEnumerable<RayIntersection> CastRayFromTo(Vector2 origin, Vector2 target)
         {
             Vector2 direction = Vector2.Normalize(target - origin);
             float angle = MathF.Atan2(direction.Y, direction.X);
             float distance = Vector2.Distance(origin, target);
-            foreach (RaycastStep step in CastRay(origin, angle))
+            foreach (RayIntersection step in CastRay(origin, angle))
             {
                 if (step.Distance > distance)
                     break;
@@ -142,6 +236,26 @@ namespace ConsoleGame
             }
         }
 
+        public static IEnumerable<RayIntersection> CastRayFromTo(Vector2 origin, Vector2 target, float stepSize)
+        {
+            Vector2 direction = Vector2.Normalize(target - origin);
+            float angle = MathF.Atan2(direction.Y, direction.X);
+            float distance = Vector2.Distance(origin, target);
+            for (float i = 0; i < distance; i += stepSize)
+            {
+                Vector2 currentPos = origin + direction * i;
+                RayIntersection ri = GetPooledRayIntersection();
+                ri.Type = RayIntersectionType.Tile;
+                ri.Position = currentPos;
+                ri.TilePosition = new Vector2((int)currentPos.X, (int)currentPos.Y);
+                ri.Direction = direction;
+                ri.Angle = angle;
+                ri.Distance = i;
+                ri.DistanceToNextTile = Math.Min(stepSize, distance - i);
+                ri.StepIndex = (int)(i / stepSize);
+                yield return ri;
+            }
+        }
 
         #endregion
 
@@ -154,34 +268,38 @@ namespace ConsoleGame
         /// <param name="origin">The origin of the ray.</param>
         /// <param name="angle">The angle of the ray.</param>
         /// <returns>The steps of the ray. Both the intersections with tile borders and shapes are included.</returns>
-        public static IEnumerable<RaycastStep> CastRay(MapHelper map, Vector2 origin, float angle)
+        public static IEnumerable<RayIntersection> CastRay(MapHelper map, Vector2 origin, float angle)
         {
-            foreach (RaycastStep step in CastRay(origin, angle))
+            foreach (RayIntersection step in CastRay(origin, angle))
             {
                 yield return step;
-                if (!map.Map.Validate(step.Tile))
+                if (!map.StaticMap.Validate(step.TilePosition))
                     continue;
-                Tile tile = map[step.Tile];
-                //List<float> stepsWithinTile = [];
-                // we also need to have the ref to the shape that was hit
-                List<(float distance, Shape shape)> stepsWithinTile = [];
 
-                foreach (Shape shape in tile.Shapes)
-                    if (shape.CheckIntersection(origin, step.Angle, out float distanceToShape) && distanceToShape < step.DistanceToNextTile)
-                        stepsWithinTile.Add((distanceToShape, shape));
+                List<(float distance, float normPos, Shape shape)> stepsWithinTile = [];
+                foreach (Shape shape in map.StaticMap[step.TilePosition].Shapes)
+                    if (shape.CheckIntersection(origin, step.Angle, out float distanceToShape, out float normPos) && distanceToShape < step.DistanceToNextTile)
+                        stepsWithinTile.Add((distanceToShape, normPos, shape));
+                foreach (Shape shape in map.DynamicMap[step.TilePosition].Shapes)
+                    if (shape.CheckIntersection(origin, step.Angle, out float distanceToShape, out float normPos) && distanceToShape < step.DistanceToNextTile)
+                        stepsWithinTile.Add((distanceToShape, normPos, shape));
 
                 // yield steps in order from shortest to longest
-                foreach (var (distance, shape) in stepsWithinTile.OrderBy(s => s.distance))
-                    yield return new RaycastStep(
-                        position: origin + (step.Direction * distance),
-                        tile: step.Tile,
-                        direction: step.Direction,
-                        angle: step.Angle,
-                        distance: distance,
-                        distanceToNextTile: step.DistanceToNextTile - distance,
-                        stepIndex: step.StepIndex,
-                        shape: shape
-                        );
+                foreach (var (distance, normPos, shape) in stepsWithinTile.OrderBy(s => s.distance))
+                {
+                    RayIntersection ri = GetPooledRayIntersection();
+                    ri.Type = RayIntersectionType.Shape;
+                    ri.Position = origin + (step.Direction * distance);
+                    ri.TilePosition = step.TilePosition;
+                    ri.Direction = step.Direction;
+                    ri.Angle = step.Angle;
+                    ri.Distance = distance;
+                    ri.DistanceToNextTile = step.DistanceToNextTile - distance;
+                    ri.StepIndex = step.StepIndex;
+                    ri.Shape = shape;
+                    ri.NormalizedPosition = normPos;
+                    yield return ri;
+                }
             }
         }
 
@@ -194,7 +312,7 @@ namespace ConsoleGame
         /// <param name="fov">The field of view of the rays.</param>
         /// <param name="numRays">The number of rays to cast.</param>
         /// <returns>The steps of the rays. Both the intersections with tile borders and shapes are included.</returns>
-        public static IEnumerable<IEnumerable<RaycastStep>> CastRays(MapHelper map, Vector2 origin, float angle, float fov, int numRays)
+        public static IEnumerable<IEnumerable<RayIntersection>> CastRays(MapHelper map, Vector2 origin, float angle, float fov, int numRays)
         {
             float halfFov = fov / 2;
             float rayAngleStep = fov / (numRays - 1);
@@ -206,8 +324,30 @@ namespace ConsoleGame
             }
         }
 
-        public static IEnumerable<IEnumerable<RaycastStep>> CastRays(MapHelper map, Entity entity, int numRays) =>
+        public static IEnumerable<IEnumerable<RayIntersection>> CastRays(MapHelper map, Entity entity, int numRays) =>
             CastRays(map, entity, entity.Angle, entity.FOV, numRays);
+
+        #endregion
+
+        #region Helper Methods
+
+        public static IEnumerable<(int Index, float Distance)> PerspectiveSteps(
+            float rayLength,
+            int numSteps,
+            float near = 0.1f,
+            float exponent = 0.004f
+            )
+        {
+            float start = 1 / near;
+            float end = 1 / rayLength;
+
+            for (int i = 0; i < numSteps; i++)
+            {
+                float t = MathF.Pow((float)i / (numSteps - 1), exponent);
+                float invD = start + (end - start) * t;
+                yield return (i, 1 / invD);
+            }
+        }
 
         #endregion
     }

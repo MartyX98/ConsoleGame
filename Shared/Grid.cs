@@ -1,11 +1,13 @@
-﻿using System;
-using System.ComponentModel;
+﻿using Sharpie;
+using SixLabors.ImageSharp.PixelFormats;
+using System;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using System.Collections.Generic;
+using System.Reflection.Metadata.Ecma335;
+using System.Text;
 
-namespace ConsoleGame
+namespace Shared
 {
     /// <summary>
     /// Represents a 2D grid of type T.
@@ -25,7 +27,7 @@ namespace ConsoleGame
         /// <param name="fill">The fill value for the grid elements.</param>
         public Grid(int width, int height, T fill = default(T))
         {
-            Arr = Enumerable.Repeat(fill, width * height).ToArray();
+            Arr = [.. Enumerable.Repeat(fill, width * height)];
             Width = width;
             Height = height;
         }
@@ -158,27 +160,40 @@ namespace ConsoleGame
         /// <param name="c">The value to fill the grid with.</param>
         public void Fill(T c)
         {
-            for (int i = 0; i < Height * Width; i++)
-            {
-                Arr[i] = c;
-            }
+            //for (int i = 0; i < Height * Width; i++)
+            //{
+            //    Arr[i] = c;
+            //}
+
+            Array.Fill(Arr, c);
         }
 
         /// <summary>
         /// Imposes another grid onto this grid at the specified position.
         /// </summary>
-        /// <param name="p">The grid to impose.</param>
+        /// <param name="grid">The grid to impose.</param>
         /// <param name="y">The y-coordinate of the top-left corner where the grid will be imposed.</param>
         /// <param name="x">The x-coordinate of the top-left corner where the grid will be imposed.</param>
-        public void Impose(Grid<T> p, int y = 0, int x = 0)
+        public void Impose(Grid<T> grid, int y = 0, int x = 0)
         {
-            for (int pY = 0; pY < p.Height; pY++)
-            {
-                for (int pX = 0; pX < p.Width; pX++)
-                {
-                    this[y + pY, x + pX] = p[pY, pX];
-                }
-            }
+            for (int pY = 0; pY < grid.Height; pY++)
+                for (int pX = 0; pX < grid.Width; pX++)
+                    this[y + pY, x + pX] = grid[pY, pX];
+        }
+
+        /// <summary>
+        /// Imposes another grid onto this grid at the specified position, based on a predicate.
+        /// </summary>
+        /// <param name="grid">The grid to impose.</param>
+        /// <param name="predicate">The predicate to determine whether to impose an element.</param>
+        /// <param name="y">The y-coordinate of the top-left corner where the grid will be imposed.</param>
+        /// <param name="x">The x-coordinate of the top-left corner where the grid will be imposed.</param>
+        public void Impose(Grid<T> grid, Func<T, bool> predicate, int y = 0, int x = 0)
+        {
+            for (int pY = 0; pY < grid.Height; pY++)
+                for (int pX = 0; pX < grid.Width; pX++)
+                    if (predicate(grid[pY, pX]))
+                        this[y + pY, x + pX] = grid[pY, pX];
         }
 
         /// <summary>
@@ -187,9 +202,13 @@ namespace ConsoleGame
         /// <param name="y">The y-coordinate of the position.</param>
         /// <param name="x">The x-coordinate of the position.</param>
         /// <returns><c>true</c> if the position is within bounds; otherwise, <c>false</c>.</returns>
-        public bool Validate(float y, float x)
+        public bool Validate(int y, int x, int offset = 0)
         {
-            return 0 <= x && x < Width && 0 <= y && y < Height;
+            return 
+                0 - offset <= x && 
+                x < Width + offset && 
+                0 - offset <= y && 
+                y < Height + offset;
         }
 
         /// <summary>
@@ -197,88 +216,7 @@ namespace ConsoleGame
         /// </summary>
         /// <param name="v">The position as a <see cref="Vector2"/>.</param>
         /// <returns><c>true</c> if the position is within bounds; otherwise, <c>false</c>.</returns>
-        public bool Validate(Vector2 v) => Validate(v.Y, v.X);
-    }
-
-    /// <summary>
-    /// Represents a 2D grid of characters.
-    /// </summary>
-    public class CharGrid : Grid<char>
-    {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="CharGrid"/> class with the specified width, height, and fill character.
-        /// </summary>
-        /// <param name="width">The width of the grid.</param>
-        /// <param name="height">The height of the grid.</param>
-        /// <param name="fill">The fill character for the grid elements.</param>
-        public CharGrid(int width, int height, char fill = ' ') : base(width, height, fill) { }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="CharGrid"/> class with the specified width, height, and array of characters.
-        /// </summary>
-        /// <param name="width">The width of the grid.</param>
-        /// <param name="height">The height of the grid.</param>
-        /// <param name="arr">The array of characters to initialize the grid with.</param>
-        public CharGrid(int width, int height, char[] arr) : base(width, height, arr) { }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="CharGrid"/> class by copying another character grid.
-        /// </summary>
-        /// <param name="p">The character grid to copy.</param>
-        public CharGrid(CharGrid p) : base(p) { }
-
-        /// <summary>
-        /// Loads a character grid from a file.
-        /// </summary>
-        /// <param name="path">The path to the file.</param>
-        /// <returns>A new <see cref="CharGrid"/> initialized with the contents of the file.</returns>
-        public static CharGrid Load(string path)
-        {
-            string[] lines = File.ReadAllLines(path);
-            CharGrid grid = new CharGrid(lines.Max(line => line.Length), lines.Length);
-            for (int y = 0; y < lines.Length; y++)
-            {
-                grid.Impose(lines[y], y);
-            }
-            return grid;
-        }
-
-        /// <summary>
-        /// Imposes another character grid onto this grid at the specified position.
-        /// </summary>
-        /// <param name="p">The character grid to impose.</param>
-        /// <param name="y">The y-coordinate of the top-left corner where the grid will be imposed.</param>
-        /// <param name="x">The x-coordinate of the top-left corner where the grid will be imposed.</param>
-        /// <param name="allowTransparency">Whether to allow transparency when imposing the grid.</param>
-        /// <param name="emptyChar">The character representing an empty cell.</param>
-        public void Impose(CharGrid p, int y = 0, int x = 0, bool allowTransparency = false, char emptyChar = '_')
-        {
-            for (int pY = 0; pY < p.Height; pY++)
-            {
-                for (int pX = 0; pX < p.Width; pX++)
-                {
-                    if (allowTransparency && p[pY, pX] == ' ') continue;
-                    else if (allowTransparency && p[pY, pX] == emptyChar) this[y + pY, x + pX] = ' ';
-                    else this[y + pY, x + pX] = p[pY, pX];
-                }
-            }
-        }
-
-        /// <summary>
-        /// Imposes a string onto this grid at the specified position.
-        /// </summary>
-        /// <param name="s">The string to impose.</param>
-        /// <param name="y">The y-coordinate of the top-left corner where the string will be imposed.</param>
-        /// <param name="x">The x-coordinate of the top-left corner where the string will be imposed.</param>
-        /// <param name="allowTransparency">Whether to allow transparency when imposing the string.</param>
-        public void Impose(string s, int y = 0, int x = 0, bool allowTransparency = false)
-        {
-            for (int pX = 0; pX < s.Length; pX++)
-            {
-                if (allowTransparency && s[pX] == ' ') continue;
-                this[y, x + pX] = s[pX];
-            }
-        }
+        public bool Validate(Vector2 v, int offset = 0) => Validate((int)v.Y, (int)v.X, offset);
     }
 
     /// <summary>
@@ -309,21 +247,21 @@ namespace ConsoleGame
         public void Remove(Shape[] shapes) => Shapes = [.. Shapes.Except(shapes)];
         public void Clear() => Shapes = [];
 
-        public bool RaycastAgainst(Vector2 origin, Vector2 direction, out float distance)
-        {
-            // TODO: this should be an iterator of distances ordered from shortest to longest
-            distance = float.MaxValue;
-            foreach (Shape shape in Shapes)
-            {
-                if (shape.CheckIntersection(origin, direction, out float d))
-                    if (d < distance)
-                        distance = d;
-            }
-            return distance < float.MaxValue;
-        }
+        //public bool RaycastAgainst(Vector2 origin, Vector2 direction, out float distance)
+        //{
+        //    // TODO: this should be an iterator of distances ordered from shortest to longest
+        //    distance = float.MaxValue;
+        //    foreach (Shape shape in Shapes)
+        //    {
+        //        if (shape.CheckIntersection(origin, direction, out float d, out float normPos))
+        //            if (d < distance)
+        //                distance = d;
+        //    }
+        //    return distance < float.MaxValue;
+        //}
 
-        public bool RaycastAgainst(Vector2 origin, float angle, out float distance) =>
-            RaycastAgainst(origin, new Vector2(MathF.Cos(angle), MathF.Sin(angle)), out distance);
+        //public bool RaycastAgainst(Vector2 origin, float angle, out float distance) =>
+        //    RaycastAgainst(origin, new Vector2(MathF.Cos(angle), MathF.Sin(angle)), out distance);
     }
 
     /// <summary>
@@ -353,21 +291,141 @@ namespace ConsoleGame
         /// <param name="width">The width of the grid.</param>
         /// <param name="height">The height of the grid.</param>
         /// <param name="fill">The tile to fill the grid with.</param>
-        public TileGrid(int width, int height, Tile fill) : base(width, height, fill)
-        {
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    this[y, x] = new Tile(fill);
-                }
-            }
-        }
+        public TileGrid(int width, int height, Tile fill) : base(width, height, fill) { }
+        
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TileGrid"/> class by copying another tile grid.
         /// </summary>
         /// <param name="g">The tile grid to copy.</param>
-        
+        public TileGrid(TileGrid g) : base(g)
+        {
+            for (int y = 0; y < Height; y++)
+            {
+                for (int x = 0; x < Width; x++)
+                {
+                    this[y, x] = new Tile(g[y, x]);
+                }
+            }
+        }
+    }
+
+    public class DisplayGrid : Grid<Pixel>
+    {
+        private readonly Grid<char> _pixelChars;
+        private readonly StringBuilder _styledLine;
+        private readonly StyledLine[] _linePool;
+        private readonly int _linePoolCapacity;
+        private int _poolIndex;
+
+        public DisplayGrid(int width, int height, char fill = ' ')
+            : base(width, height, new Pixel())
+        {
+            _pixelChars = new(width, height, fill);
+            _styledLine = new StringBuilder(width * height);
+            _linePoolCapacity = width * height;
+            _linePool = new StyledLine[_linePoolCapacity];
+            _poolIndex = 0;
+
+            for (int i = 0; i < _linePoolCapacity; i++)
+                _linePool[i] = new StyledLine();
+        }
+
+        /// <summary>
+        /// Imposes another grid onto this grid at the specified position.
+        /// </summary>
+        /// <param name="grid">The grid to impose.</param>
+        /// <param name="y">The y-coordinate of the top-left corner where the grid will be imposed.</param>
+        /// <param name="x">The x-coordinate of the top-left corner where the grid will be imposed.</param>
+        public void Impose(DisplayGrid grid, int y = 0, int x = 0)
+        {
+            for (int pY = 0; pY < grid.Height; pY++)
+                for (int pX = 0; pX < grid.Width; pX++)
+                    SetPixel(grid[pY, pX], grid._pixelChars[pY, pX], x + pX, y + pY);
+                    //this[y + pY, x + pX] = grid[pY, pX];
+        }
+
+        /// <summary>
+        /// Imposes another grid onto this grid at the specified position, based on a predicate.
+        /// </summary>
+        /// <param name="grid">The grid to impose.</param>
+        /// <param name="predicate">The predicate to determine whether to impose an element.</param>
+        /// <param name="y">The y-coordinate of the top-left corner where the grid will be imposed.</param>
+        /// <param name="x">The x-coordinate of the top-left corner where the grid will be imposed.</param>
+        public void Impose(DisplayGrid grid, Func<Pixel, bool> predicate, int y = 0, int x = 0)
+        {
+            for (int pY = 0; pY < grid.Height; pY++)
+                for (int pX = 0; pX < grid.Width; pX++)
+                    if (predicate(grid[pY, pX]))
+                        SetPixel(grid[pY, pX], grid._pixelChars[pY, pX], x + pX, y + pY);
+                        //this[y + pY, x + pX] = grid[pY, pX];
+        }
+
+        public void Fill(Pixel pixel, char character)
+        {
+            //for (int i = 0; i < Height * Width; i++)
+            //{
+            //    Arr[i] = c;
+            //}
+
+            Array.Fill(Arr, pixel);
+            _pixelChars.Fill(character);
+        }
+
+        public void SetPixel(Pixel pixel, char character, int x, int y)
+        {
+            this[y, x] = pixel;
+            _pixelChars[y, x] = character;
+        }
+
+        /// <summary>
+        /// This function groups chunks of lines that have the same style and returns them as strings, reducing the required terminal write operations.
+        /// </summary>
+        /// <returns>Strings with style to be printed</returns>
+        public IEnumerable<StyledLine> GetStyledLines()
+        {
+            _styledLine.Clear();
+            _poolIndex = 0; // reset for this frame
+
+            for (int y = 0; y < Height; y++)
+            {
+                Style style = Style.Default;
+                int startX = 0;
+
+                for (int x = 0; x < Width; x++)
+                {
+                    Pixel p = this[y, x];
+                    char c = _pixelChars[y, x];
+                    if (_styledLine.Length == 0)
+                    {
+                        style = p.style;
+                        startX = x;
+                    }
+
+                    if (p.style == style)
+                        _styledLine.Append(c);
+                    else
+                    {
+                        var line = _linePool[_poolIndex++];
+                        line.Set(_styledLine.ToString(), style, startX, y);
+                        yield return line;
+                        _styledLine.Clear();
+
+                        _styledLine.Append(c);
+                        style = p.style;
+                        startX = x;
+                    }
+                }
+
+                if (_styledLine.Length > 0)
+                {
+                    var line = _linePool[_poolIndex++];
+                    line.Set(_styledLine.ToString(), style, startX, y);
+                    yield return line;
+                    _styledLine.Clear();
+                }
+            }
+        }
+
     }
 }

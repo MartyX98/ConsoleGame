@@ -1,9 +1,4 @@
-﻿using Microsoft.VisualBasic.Devices;
-using System.Globalization;
-using Windows.Media.Playback;
-using Windows.UI.Input;
-
-namespace ConsoleGame
+﻿namespace ConsoleGameDemo
 {
     public class Program
     {

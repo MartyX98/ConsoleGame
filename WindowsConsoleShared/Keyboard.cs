@@ -1,8 +1,11 @@
 ﻿using System.Runtime.InteropServices;
-
-namespace ConsoleGame
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Windows.Forms;
+namespace WindowsConsoleShared
 {
-    public class InputHandler
+    public class Keyboard
     {
         [DllImport("user32.dll")]
         static extern short GetKeyState(int key);
@@ -10,7 +13,7 @@ namespace ConsoleGame
         public Dictionary<Keys, (bool IsDown, bool IsToggled)> previousState = [];
         public List<Keys> allKeys = [.. Enum.GetValues<Keys>().Cast<Keys>()];
 
-        public InputHandler()
+        public Keyboard()
         {
             foreach (Keys key in allKeys)
             {

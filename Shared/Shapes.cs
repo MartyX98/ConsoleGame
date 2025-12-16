@@ -1,8 +1,10 @@
 using System;
-using System.Numerics;
 using System.Collections.Generic;
-using static ConsoleGame.Raycaster;
-namespace ConsoleGame
+using System.Linq;
+using System.Numerics;
+using static Shared.Raycaster;
+
+namespace Shared
 {
     /// <summary>
     /// Represents a 2D shape that can be raycasted against.
@@ -10,10 +12,79 @@ namespace ConsoleGame
     public abstract class Shape(string name = "Shape")
     {
         public string Name = name;
-        public abstract bool CheckIntersection(Vector2 origin, Vector2 direction, out float distance);
+        public string TextureName = "";
+        public TextureMappingType TextureMapping = TextureMappingType.Invisible;
+        public bool IsSolid = true;
+        public abstract float Length { get; }
+        /// <summary>
+        /// Checks if a ray intersects with the shape.
+        /// </summary>
+        /// <param name="origin"> The origin of the ray.</param>
+        /// <param name="direction"> The direction of the ray.</param>
+        /// <param name="rayDistance"> The distance from the origin to the intersection point.</param>
+        /// <param name="normalizedPosition"> The normalized position of the intersection point along the shape.</param>
+        /// <returns> True if the ray intersects with the shape, false otherwise.</returns>
+        public abstract bool CheckIntersection(Vector2 origin, Vector2 direction, out float rayDistance, out float normalizedPosition);
+        /// <summary>
+        /// Returns the tiles that are intersected by the shape.
+        /// </summary>
+        /// <returns> The intersected tiles.</returns>
         public abstract IEnumerable<Vector2> GetIntersectedTiles();
-        public bool CheckIntersection(Vector2 origin, float angle, out float distance) => 
-            CheckIntersection(origin, new Vector2(MathF.Cos(angle), MathF.Sin(angle)), out distance);
+        /// <summary>
+        /// Checks if a ray intersects with the shape.
+        /// </summary>
+        /// <param name="origin"> The origin of the ray.</param>
+        /// <param name="angle"> The angle of the ray.</param>
+        /// <param name="rayDistance"> The distance from the origin to the intersection point.</param>
+        /// <param name="normalizedPosition"> The normalized position of the intersection point along the shape.</param>
+        /// <returns> True if the ray intersects with the shape, false otherwise.</returns>
+        public bool CheckIntersection(Vector2 origin, float angle, out float rayDistance, out float normalizedPosition) => 
+            CheckIntersection(origin, new Vector2(MathF.Cos(angle), MathF.Sin(angle)), out rayDistance, out normalizedPosition);
+    }
+
+    /// <summary>
+    /// Represents the type of texture mapping for a shape.
+    /// </summary>
+    public enum TextureMappingType
+    {
+        /// <summary>
+        /// No texture mapping.
+        /// </summary>
+        Invisible,
+        /// <summary>
+        /// Stretch the texture to fit the shape horizontally.
+        /// </summary>
+        Stretch,
+        /// <summary>
+        /// Repeat the texture horizontally from the left.
+        /// </summary>
+        Repeat_FromLeft,
+        /// <summary>
+        /// Repeat the texture horizontally from the right.
+        /// </summary>
+        Repeat_FromRight,
+        /// <summary>
+        /// Repeat the texture horizontally centered.
+        /// </summary>
+        Repeat_Centered,
+    }
+
+    #region Elementary shapes
+
+    public class Point(Vector2 position, string name = "Point") : Shape(name)
+    {
+        public Vector2 Position = position;
+        public override float Length => 0;
+        public override bool CheckIntersection(Vector2 origin, Vector2 direction, out float rayDistance, out float normalizedPosition)
+        {
+            rayDistance = 0;
+            normalizedPosition = 0;
+            return Position == origin;
+        }
+        public override IEnumerable<Vector2> GetIntersectedTiles()
+        {
+            yield return new Vector2((int)Position.X, (int)Position.Y);
+        }
     }
 
     /// <summary>
@@ -25,10 +96,12 @@ namespace ConsoleGame
     {
         public Vector2 A = a;
         public Vector2 B = b;
+        public override float Length => A.Distance(B);
 
-        public override bool CheckIntersection(Vector2 origin, Vector2 direction, out float distance)
+        public override bool CheckIntersection(Vector2 origin, Vector2 direction, out float rayDistance, out float normalizedPosition)
         {
-            distance = 0;
+            rayDistance = 0;
+            normalizedPosition = 0;
             // The segment's vector.
             Vector2 r = B - A;
 
@@ -43,20 +116,26 @@ namespace ConsoleGame
             Vector2 fAtoOrigin = origin - A;
 
             // Solve for parameters t and u using cross products.
-            distance = fAtoOrigin.Cross(r) / -denom;
-            float u = fAtoOrigin.Cross(direction) / -denom;
+            rayDistance = fAtoOrigin.Cross(r) / -denom;
+            normalizedPosition = fAtoOrigin.Cross(direction) / -denom;
 
+            bool isHit = rayDistance >= 0 && normalizedPosition is >= 0 and <= 1;
+            if (isHit) normalizedPosition = 1 - normalizedPosition;
             // distanceTraveled must be >= 0 for the ray (forward direction)
             // u must be between 0 and 1 for the intersection to lie on the segment.
-            return distance >= 0 && u >= 0 && u <= 1;
+            return isHit;
         }
 
         public override IEnumerable<Vector2> GetIntersectedTiles()
         {
-            foreach (RaycastStep step in CastRayFromTo(A, B))
-                yield return step.Tile;
+            foreach (RayIntersection step in CastRayFromTo(A, B))
+                yield return step.TilePosition;
         }
     }
+
+    #endregion
+
+    #region Polygon shapes
 
     /// <summary>
     /// Represents a polygon in 2D space.
@@ -65,12 +144,13 @@ namespace ConsoleGame
     public class Polygon : Shape
     {
         public LineSegment[] Segments;
+        public override float Length => Segments.Sum(s => s.Length);
 
         public Polygon(LineSegment[] segments, string name = "Polygon") : base(name)
         {
             Segments = segments;
         }
-        public Polygon(Vector2[] vertices)
+        public Polygon(Vector2[] vertices, string name = "Polygon") : base(name)
         {
             Segments = new LineSegment[vertices.Length];
             for (int i = 0; i < vertices.Length; i++)
@@ -78,6 +158,7 @@ namespace ConsoleGame
                 Segments[i] = new LineSegment(vertices[i], vertices[(i + 1) % vertices.Length]);
             }
         }
+
         public Polygon(Vector2 center, int numOfSides, double radius, string name = "Polygon") : base(name)
         {
             Segments = new LineSegment[numOfSides];
@@ -91,20 +172,22 @@ namespace ConsoleGame
             }
         }
 
-        public override bool CheckIntersection(Vector2 origin, Vector2 direction, out float distance)
+        public override bool CheckIntersection(Vector2 origin, Vector2 direction, out float rayDistance, out float normalizedPosition)
         {
-            distance = float.MaxValue;
+            rayDistance = float.MaxValue;
+            normalizedPosition = 0;
             foreach (LineSegment segment in Segments)
             {
-                if (segment.CheckIntersection(origin, direction, out float t))
+                if (segment.CheckIntersection(origin, direction, out float rd, out float np))
                 {
-                    if (t < distance)
+                    if (rd < rayDistance)
                     {
-                        distance = t;
+                        rayDistance = rd;
+                        normalizedPosition = np;
                     }
                 }
             }
-            return distance < float.MaxValue;
+            return rayDistance < float.MaxValue;
         }
 
         public override IEnumerable<Vector2> GetIntersectedTiles()
@@ -117,6 +200,16 @@ namespace ConsoleGame
         }
     }
 
+    public class Square : Polygon
+    {
+        public Square(Vector2 center, float size, string name = "Square") : base(center, 4, size / 2, name) { }
+        public Square(Vector2 min, Vector2 max, string name = "Square") : base([min, new(max.X, min.Y), max, new(min.X, max.Y)], name) { }
+    }
+
+    #endregion
+
+    #region Curve based shapes
+
     /// <summary>
     /// Represents a circle in 2D space.
     /// </summary>
@@ -126,22 +219,56 @@ namespace ConsoleGame
     {
         public Vector2 Center = center;
         public float Radius = radius;
-        public override bool CheckIntersection(Vector2 origin, Vector2 direction, out float distance)
+        public override float Length => MathF.PI * 2 * Radius;
+        public override bool CheckIntersection(Vector2 origin, Vector2 direction, out float rayDistance, out float normalizedPosition)
         {
-            distance = 0;
-            Vector2 f = Center - origin;
-            float t = Vector2.Dot(f, direction);
-            float dSquared = Vector2.Dot(f, f) - t * t;
-            if (dSquared > Radius * Radius)
+            rayDistance = 0;
+            normalizedPosition = 0;
+
+            // Compute the vector from the ray's origin to the circle's center.
+            Vector2 toCircleCenter = Center - origin;
+
+            // Project this vector onto the ray's direction.
+            float centerProjection = Vector2.Dot(toCircleCenter, direction);
+
+            // Calculate the squared perpendicular distance from the circle center to the ray.
+            float perpendicularDistanceSquared = Vector2.Dot(toCircleCenter, toCircleCenter) - centerProjection * centerProjection;
+
+            // If the ray is too far from the circle, there's no intersection.
+            if (perpendicularDistanceSquared > Radius * Radius)
                 return false;
-            float thc = MathF.Sqrt(Radius * Radius - dSquared);
-            float t0 = t - thc;
-            float t1 = t + thc;
-            if (t0 < 0 && t1 < 0)
+
+            // Calculate the half-chord length: the distance from the closest approach to the actual intersection points.
+            float halfChordLength = MathF.Sqrt(Radius * Radius - perpendicularDistanceSquared);
+
+            // Determine the entry and exit points along the ray.
+            float entryPoint = centerProjection - halfChordLength;
+            float exitPoint = centerProjection + halfChordLength;
+
+            // If both intersection points are behind the ray's origin, the ray does not hit the circle.
+            if (entryPoint < 0 && exitPoint < 0)
                 return false;
-            distance = t0 < 0 ? t1 : t0;
+
+            // Use the closest valid intersection point.
+            rayDistance = entryPoint < 0 ? exitPoint : entryPoint;
+
+            // Calculate the actual intersection point on the circle.
+            Vector2 intersectionPoint = origin + rayDistance * direction;
+
+            // Determine the vector from the circle's center to the intersection point.
+            Vector2 hitOffset = intersectionPoint - Center;
+
+            // Calculate the angle (in radians) relative to the positive x-axis.
+            float angle = MathF.Atan2(hitOffset.Y, hitOffset.X);
+            if (angle < 0)
+                angle += MathF.PI * 2;
+
+            // Normalize the angle to a value between 0 and 1.
+            normalizedPosition = 1 - (angle / (MathF.PI * 2));
+
             return true;
         }
+
 
         public override IEnumerable<Vector2> GetIntersectedTiles()
         {
@@ -156,4 +283,7 @@ namespace ConsoleGame
                 }
         }
     }
+
+    #endregion
+
 }

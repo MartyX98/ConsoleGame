@@ -15,6 +15,10 @@
 
   <ItemGroup>
     <PackageReference Include="Sharpie-Curses" Version="1.7.0" />
+    <PackageReference Include="Sharpie-Libs-NCurses" Version="1.0.5" />
+    <PackageReference Include="Sharpie-Libs-PdCurses" Version="1.0.3" />
+    <PackageReference Include="Sharpie-Libs-PdCursesMod" Version="1.0.3" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.7" />
   </ItemGroup>
 
   <ItemGroup>
@@ -33,5 +37,7 @@
   </ItemGroup>
 
   <Import Project="..\Shared\Shared.projitems" Label="Shared" />
+
+  <Import Project="..\WindowsConsoleShared\WindowsConsoleShared.projitems" Label="Shared" />
 
 </Project>

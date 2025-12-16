@@ -1,14 +1,16 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using static ConsoleGame.Raycaster;
-using ConsoleGame;
 using System;
 using System.Collections.Generic;
 using Vector2 = System.Numerics.Vector2;
-using System.Reflection.Metadata.Ecma335;
+using static Shared.Raycaster;
+using Shared;
+using Keyboard = MonoGameDemo.Keyboard;
+using Color = Microsoft.Xna.Framework.Color;
+using Keys = Microsoft.Xna.Framework.Input.Keys;
 
-namespace MonoDebugger
+namespace MonoGameDemo
 {
     public class MonoGameApp : Game
     {
@@ -19,10 +21,11 @@ namespace MonoDebugger
         const int gridHeight = 10;
         const int tileSize = 75;
         private MapHelper map;
-        private Entity ePlayer;
-        private List<RaycastStep> castResults;
+        private PointEntity ePlayer;
+        private List<Entity> entities = [];
+        private List<RayIntersection> castResults = [];
         private bool mouseLock = false;
-        private Vector2 lastMousePosition;
+        private Vector2 lastMousePosition = new();
         private float shapeSize = 1;
 
         public MonoGameApp()
@@ -32,28 +35,27 @@ namespace MonoDebugger
             IsMouseVisible = true;
         }
 
+        #region Monogame Methods
+
         protected override void Initialize()
         {
-            // TODO: Add your initialization logic here
-            // Set the window size
-            Console.WriteLine("Initializing Raycasting Vizualizer");
             _graphics.PreferredBackBufferWidth = gridWidth * tileSize;  
             _graphics.PreferredBackBufferHeight = gridHeight * tileSize;
             _graphics.ApplyChanges();
 
             Window.Title = "Raycasting Vizualizer";
             map = new MapHelper(gridWidth, gridHeight);
-            ePlayer = new(
-                x: 5,
-                y: 5,
-                angle: (float)(-Math.PI / 2),
-                walkSpeed: 0.005f,
-                viewDistance: 5,
-                fov: 1
-            );
+            ePlayer = new()
+            {
+                X = 5,
+                Y = 5,
+                Angle = -MathF.PI / 2f,
+                WalkSpeed = 0.005f,
+                ViewDistance = 5,
+                FOV = 1
+            };
 
-            castResults = [];
-            lastMousePosition = new();
+            Raycaster.Init(1, 1);
 
             base.Initialize();
         }
@@ -66,44 +68,52 @@ namespace MonoDebugger
 
         protected override void Update(GameTime gameTime)
         {
-            // Mouse and Keyboard input
             if (IsActive) HandleUserInput(gameTime);
-
-            // Raycasting
-            Vector2 playerScreenPos = ePlayer * tileSize;
-            castResults.Clear();
-            foreach (IEnumerable<RaycastStep> ray in CastRays(
-                map: map,
-                origin: ePlayer,
-                angle: playerScreenPos.AngleTo(lastMousePosition),
-                fov: ePlayer.FOV,
-                numRays: 1000))
-            {
-                foreach (RaycastStep step in ray)
-                {
-                    // if the ray is out of bounds or exceeds the view distance, clamp it
-                    if (!map.Map.Validate(step.Tile) || step.Distance >= ePlayer.ViewDistance)
-                    {
-                        step.Distance = ePlayer.ViewDistance;
-                        step.Position = ePlayer + step.Direction * step.Distance;
-                        castResults.Add(step);
-                        break;
-                    }
-
-                    // if the ray hits a shape, add it to the results and stop casting
-                    // TODO: Here we can define different behavior for different shapes
-                    if (step.Shape != null)
-                    {
-                        castResults.Add(step);
-                        break;
-                    }
-
-                    continue;
-                }
-            }
-
+            UpdateEntities();
+            Raycast();
             base.Update(gameTime);
         }
+
+        protected override void Draw(GameTime gameTime)
+        {
+            GraphicsDevice.Clear(Color.Black);
+            _spriteBatch.Begin();
+
+            int AlmostBlackShade = 50;
+            Color AlmostBlack = Color.FromNonPremultiplied(AlmostBlackShade, AlmostBlackShade, AlmostBlackShade, 255);
+
+            DrawBackground(_spriteBatch, AlmostBlack);
+            DrawShapes(_spriteBatch, map.Shapes, Color.White);
+            DrawEntities(_spriteBatch);
+            DrawRays(_spriteBatch, castResults, Color.Crimson);
+            DrawPlayer(_spriteBatch, ePlayer, Color.Crimson);
+
+            // drawing shape placement preview
+            var mouseState = Mouse.GetState();
+
+            int DarkerGrayShade = 100;
+            Color DarkerGray = Color.FromNonPremultiplied(DarkerGrayShade, DarkerGrayShade, DarkerGrayShade, 255);
+            DrawShapePlacementPreview(_spriteBatch, new Vector2(mouseState.X, mouseState.Y), DarkerGray);
+            //drawing controls description
+            string temp = "";
+            if (castResults[0].Type == RayIntersectionType.Shape)
+            {
+                temp = $"I({castResults[0].NormalizedPosition})";
+            }
+            DrawInfo(_spriteBatch, [
+                $"Size: {shapeSize:n1}",
+                $"Entities: {entities.Count}" + (entities.Count == 0 ? "" : $", XYA ({entities[0].X:n1}, {entities[0].Y:n1}, {entities[0].Angle:n1})"),
+                $"Intersection:" + (castResults.Count == 0 ? "" : $", D ({castResults[0].Distance:n1}), {temp}")
+            ]);
+
+            _spriteBatch.End();
+
+            base.Draw(gameTime);
+        }
+
+        #endregion
+
+        #region Game Logic
 
         public void HandleUserInput(GameTime gameTime)
         {
@@ -132,20 +142,30 @@ namespace MonoDebugger
             if (Keyboard.IsKeyDown(Keys.M, true))
                 mouseLock = !mouseLock;
 
-            if (mouseScreenPos.X >= 0 && mouseScreenPos.X < gridWidth * tileSize && mouseScreenPos.Y >= 0 && mouseScreenPos.Y < gridHeight * tileSize)
+            if (mouseScreenPos.X is >= 0 and < gridWidth * tileSize && 
+                mouseScreenPos.Y is >= 0 and < gridHeight * tileSize)
             {
-                shapeSize = Math.Abs((float)(Mouse.GetScrollWheelValue() / (float)10));
+                shapeSize = Math.Abs((float)(Mouse.GetScrollWheelValue() / (float)10) + 1f);
                 if (Mouse.IsButtonDown(Mouse.Button.LeftButton, true))
                 {
                     Vector2 mouseGridPosition = mouseScreenPos / tileSize;
                     //Shape shape = new Polygon([
                     //    mouseGridPosition,
-                    //        mouseGridPosition + new Vector2(1, 0),
-                    //        mouseGridPosition + new Vector2(1, 1),
-                    //        mouseGridPosition + new Vector2(0, 1)
+                    //        mouseGridPosition + new Vector2(shapeSize, 0),
+                    //        mouseGridPosition + new Vector2(shapeSize, shapeSize),
+                    //        mouseGridPosition + new Vector2(0, shapeSize)
                     //]);
-                    Shape shape = new Circle(mouseGridPosition, shapeSize);
-                    map.AddShape(shape);
+                    //Shape shape = new Circle(mouseGridPosition, shapeSize);
+                    //map.AddShape(shape);
+
+                    BillboardEntity entity = new()
+                    {
+                        X = mouseGridPosition.X,
+                        Y = mouseGridPosition.Y,
+                        Angle = ePlayer.Angle + MathF.PI,
+                        Width = 1
+                    };
+                    entities.Add(entity);
                 }
                 if (Mouse.IsButtonDown(Mouse.Button.RightButton, true))
                 {
@@ -155,37 +175,63 @@ namespace MonoDebugger
             }
         }
 
-        protected override void Draw(GameTime gameTime)
+        public void UpdateEntities()
         {
-            GraphicsDevice.Clear(Color.Black);
-            _spriteBatch.Begin();
-
-            int AlmostBlackShade = 50;
-            Color AlmostBlack = Color.FromNonPremultiplied(AlmostBlackShade, AlmostBlackShade, AlmostBlackShade, 255);
-
-            DrawBackground(_spriteBatch, AlmostBlack);
-            DrawShapes(_spriteBatch, map.Shapes, Color.White);
-            DrawRays(_spriteBatch, castResults, Color.Crimson);
-            DrawPlayer(_spriteBatch, ePlayer, Color.Crimson);
-
-            // drawing shape placement preview
-            var mouseState = Mouse.GetState();
-
-            int DarkerGrayShade = 100;
-            Color DarkerGray = Color.FromNonPremultiplied(DarkerGrayShade, DarkerGrayShade, DarkerGrayShade, 255);
-            DrawShapePlacementPreview(_spriteBatch, new Vector2(mouseState.X, mouseState.Y), DarkerGray);
-
-            //drawing controls description
-            DrawInfo(_spriteBatch, [
-                $"L to lock focus ({mouseLock})",
-                $"Size: {shapeSize:n1}",
-            ]);
-
-            _spriteBatch.End();
-
-            base.Draw(gameTime);
+            // _staticMap is the map that never changes
+            // Map is a copy of _staticMap with added entities in their current state
+            //Map = new(_staticMap); // perhaps we can implement a clone method instead of reinitializing the map
+            foreach (Entity entity in entities)
+            {
+                // checking if entity is of type BillboardEntity
+                if (entity is BillboardEntity)
+                    entity.Angle = entity.Position.AngleTo(ePlayer);
+            }
+            map.UpdateDynamicMap(entities);
         }
-    
+
+        public void Raycast()
+        {
+            Vector2 playerScreenPos = ePlayer.Position * tileSize;
+            castResults.Clear();
+            foreach (IEnumerable<RayIntersection> ray in CastRays(
+                map: map,
+                origin: ePlayer,
+                angle: playerScreenPos.AngleTo(lastMousePosition),
+                fov: ePlayer.FOV,
+                numRays: 1))
+            {
+                foreach (RayIntersection step in ray)
+                {
+                    // if the ray is out of bounds or exceeds the view distance, clamp it
+                    if (!map.StaticMap.Validate(step.Position) || step.Distance >= ePlayer.ViewDistance)
+                    {
+                        // TODO: I cannot modify the step var. Copying it should not be permanent solution
+                        RayIntersection clampedStep = step;
+                        //step.Distance = ePlayer.ViewDistance;
+                        //step.Position = ePlayer + step.Direction * step.Distance;
+                        clampedStep.Distance = ePlayer.ViewDistance;
+                        clampedStep.Position = ePlayer.Position + step.Direction * clampedStep.Distance;
+                        castResults.Add(clampedStep);
+                        break;
+                    }
+
+                    // if the ray hits a shape, add it to the results and stop casting
+                    // TODO: Here we can define different behavior for different shapes
+                    if (step.Type == RayIntersectionType.Shape)
+                    {
+                        castResults.Add(step);
+                        break;
+                    }
+
+                    continue;
+                }
+            }
+        }
+
+        #endregion
+
+        #region Drawing Methods
+
         public void DrawBackground(SpriteBatch sb, Color color)
         {
             // Drawing grid lines
@@ -198,15 +244,20 @@ namespace MonoDebugger
             // drawing cell coords in cell's upper left corner
             int offset = 3;
             for (int x = 0; x < gridWidth; x++)
-            for (int y = 0; y < gridHeight; y++)
-            {
-                sb.DrawString(_debugFont, $"{x},{y}", new Vector2(x * tileSize, y * tileSize).Add(offset), color);
-                // writing the number of shapes in the cell
-                int shapesInCell = map[new Vector2(x, y)].Shapes.Length;
-                Vector2 shapesInCellV = new Vector2(x * tileSize, y * tileSize).Add(offset);
-                shapesInCellV.Y += 20;
-                sb.DrawString(_debugFont, $"S: {shapesInCell}", shapesInCellV, color);
-            }
+                for (int y = 0; y < gridHeight; y++)
+                {
+                    var lines = new string[]
+                    {
+                        $"XY:{x},{y}",
+                        $"S: {map.StaticMap[new Vector2(x, y)].Shapes.Length}",
+                        $"E: {map.DynamicMap[new Vector2(x, y)].Shapes.Length}"
+                    };
+
+                    for (int i = 0; i < lines.Length; i++)
+                    {
+                        sb.DrawString(_debugFont, lines[i], new Vector2(x * tileSize + offset, y * tileSize + offset + i*20), color);
+                    }
+                }
         }
         
         public void DrawShape(SpriteBatch sb, Shape shape, Color color)
@@ -227,16 +278,23 @@ namespace MonoDebugger
                 DrawShape(sb, shape, color);
         }
 
-        public void DrawPlayer(SpriteBatch sb, Entity player, Color color)
+        public void DrawPlayer(SpriteBatch sb, PointEntity player, Color color)
         {
-            sb.FillCircle(new Vector2(player.X, player.Y) * tileSize, 5, 16, color);
+            sb.FillCircle(player.Position * tileSize, 5, 16, color);
         }
 
-        public void DrawRays(SpriteBatch sb, IEnumerable<RaycastStep> rays, Color color)
+        public void DrawEntities(SpriteBatch sb)
         {
-            foreach (RaycastStep ray in rays)
+            Color entityColor = Color.Coral;
+            foreach (Entity entity in entities)
+                DrawShape(sb, entity.GetShape(), entityColor);
+        }
+
+        public void DrawRays(SpriteBatch sb, IEnumerable<RayIntersection> rays, Color color)
+        {
+            foreach (RayIntersection ray in rays)
             {
-                sb.DrawLine((Vector2)(ePlayer * tileSize), ray.Position * tileSize, color, 2);
+                sb.DrawLine(ePlayer.Position * tileSize, ray.Position * tileSize, color, 2);
             }
         }
 
@@ -260,9 +318,11 @@ namespace MonoDebugger
             int i = 0;
             foreach (string line in lines)
             {
-                _spriteBatch.DrawString(_debugFont, line, new Vector2(0, i * lineHeight), Color.White);
+                sb.DrawString(_debugFont, line, new Vector2(0, i * lineHeight), Color.White);
                 i++;
             }
         }
+
+        #endregion
     }
 }

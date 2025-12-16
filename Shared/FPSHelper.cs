@@ -1,7 +1,7 @@
-﻿using System.Diagnostics;
-using System;
+﻿using System;
+using System.Diagnostics;
 
-namespace ConsoleGame
+namespace Shared
 {
     internal class FPSHelper
     {

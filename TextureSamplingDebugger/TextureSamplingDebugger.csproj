@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0-windows10.0.26100.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
+    <UseWindowsForms>True</UseWindowsForms>
+  </PropertyGroup>
+
+  <Import Project="..\Shared\Shared.projitems" Label="Shared" />
+
+  <Import Project="..\WindowsConsoleShared\WindowsConsoleShared.projitems" Label="Shared" />
+
+  <ItemGroup>
+    <PackageReference Include="Sharpie-Curses" Version="1.7.0" />
+    <PackageReference Include="Sharpie-Libs-NCurses" Version="1.0.5" />
+    <PackageReference Include="Sharpie-Libs-PdCurses" Version="1.0.3" />
+    <PackageReference Include="Sharpie-Libs-PdCursesMod" Version="1.0.3" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.7" />
+  </ItemGroup>
+
+</Project>

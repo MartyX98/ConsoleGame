@@ -1,10 +1,21 @@
-﻿using System.Numerics;
-using System;
-namespace ConsoleGame
+﻿using System;
+using System.Numerics;
+
+namespace Shared
 {
     public static class Extensions
     {
         #region Numeric Extensions
+
+        public static byte Mod(this byte x, byte m)
+        {
+            return (byte)((x % m + m) % m);
+        }
+
+        public static short Mod(this short x, short m)
+        {
+            return (short)((x % m + m) % m);
+        }
 
         public static int Mod(this int x, int m)
         {
@@ -15,6 +26,17 @@ namespace ConsoleGame
         {
             return (x % m + m) % m;
         }
+
+        public static double Mod(this double x, double m)
+        {
+            return (x % m + m) % m;
+        }
+
+        public static decimal Mod(this decimal x, decimal m)
+        {
+            return (x % m + m) % m;
+        }
+
 
         #endregion
 

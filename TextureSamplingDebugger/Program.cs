@@ -1,0 +1,2 @@
+﻿TextureSamplingDebugger.TextureSamplingDebugger textureSamplingDebugger = new TextureSamplingDebugger.TextureSamplingDebugger();
+textureSamplingDebugger.Run();

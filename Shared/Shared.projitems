@@ -12,6 +12,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)Entity.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Extensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FileHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TerminalANSI.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TerminalSharpie.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Textures.cs" />
     <Compile Include="..\Shared\MapHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Shapes.cs" />
     <Compile Include="..\Shared\FPSHelper.cs" />

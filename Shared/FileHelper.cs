@@ -1,11 +1,8 @@
-using ConsoleGame;
-using System;
 using System.Diagnostics;
 using System.IO;
 using System.Numerics;
 
-
-namespace MonoDebugger
+namespace Shared
 {
     public class FileHelper
     {

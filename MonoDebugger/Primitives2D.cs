@@ -1,9 +1,11 @@
-﻿using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
+using Color = Microsoft.Xna.Framework.Color;
+using Rectangle = Microsoft.Xna.Framework.Rectangle;
 
-namespace MonoDebugger
+namespace MonoGameDemo
 {
     /// <summary>
     /// Copied from https://github.com/z2oh/C3.MonoGame.Primitives2D

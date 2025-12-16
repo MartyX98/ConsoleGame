@@ -1,4 +1,4 @@
-﻿namespace MonoDebugger
+﻿namespace MonoGameDemo
 {
     public class Program
     {
