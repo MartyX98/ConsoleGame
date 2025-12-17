@@ -134,7 +134,7 @@ namespace ConsoleGameDemo
             Square square = new(
                 center: new(mapSize / 2, mapSize / 2), 2)
             {
-                TextureName = "wall_text",
+                TextureName = "wall_smile",
                 TextureMapping = TextureMappingType.Stretch,
             };
             Map.AddShape(square);
