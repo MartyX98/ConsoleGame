@@ -13,8 +13,12 @@ I would however like to stick to a few things along the developement..
 - Third party libraries may be utilized if necessary.
 
 ### Known issues:
-- Input handler is very limited in it's current implementation. From the main game loop, a single key click is registered too many times.
-- [Keyboard Repetition Delay](https://superuser.com/questions/1164303/windows-how-do-i-disable-the-keyboard-delay) also sucks, but that is apparently managed on OS level and couldn't be disabled programmatically without messing with windows registry.
+- Keyboard input
+  - ~~Input handler is very limited in it's current implementation. From the main game loop, a single key click is registered too many times.~~
+  - ~~[Keyboard Repetition Delay](https://superuser.com/questions/1164303/windows-how-do-i-disable-the-keyboard-delay) also sucks, but that is apparently managed on OS level and couldn't be disabled programmatically without messing with windows registry.~~
+  - As of 2025-12-17 update, the input is read directly from Windows, instead of the console window. The previous issues are resolved with this, but more arise;
+    - It is now limited to Windows terminal only. Probably not an issue since this is a c# project.
+    - Input is read even when terminal window is not in focus, so I have to figure out how to detect window focus.
 - No collision checking implemented yet.
 - Walking or looking out of bounds may cause a crash.
 - Performance sucks mostly due to excessive writes to the console window. 
