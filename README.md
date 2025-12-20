@@ -6,7 +6,7 @@ No idea! I don't even know what kind of game it is going to be. So far I am only
 
 **The main directives** 
 
-I would however like to stick to a few thingy along the developement..
+I would however like to stick to a few things along the developement..
 - Terminal as the graphical output.
   - That's what it's build for, and what I want it to remain as. It's not practical (at all), but it's a fun constraint and I want to see how far I could take this with.
 - Other kinds of outputs besides visual are not out of the table and might be introduced later.
