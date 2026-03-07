@@ -35,7 +35,8 @@ I would however like to stick to a few things along the developement..
 - Another TUI tool for debugging textures!
 - Definitely a bunch of new bugs!
 
-![](previews/Preview_20251217.gif)
+<img src="previews/Preview_20251217.gif" width="800" />
+
 ___
 ## Basic Ascii Art texture support (2025-01-20)
 - Massive rewrite and expansion of Grid class (formerly Plane class).
@@ -45,7 +46,7 @@ ___
 - Due to texture rendering implementation, darkening walls has been removed and will be reimplemented differently later.
 - Added sky into the background :)
 
-![](previews/Preview_20250120.gif)
+<img src="previews/Preview_20250120.gif" width="800" />
 
 ___
 ## Initial upload (2025-01-12)
@@ -54,7 +55,7 @@ ___
 - Contains a simple input handler for moving the player entity around the map, based on reading the console window input. 
 - Renders the minimap on screen, with the player entity represented by a '☻', and the walls that are rendered by '#'.
 
-![](previews/Preview_20250112.gif)
+<img src="previews/Preview_20250112.gif" width="800" />
 
 ___
 
